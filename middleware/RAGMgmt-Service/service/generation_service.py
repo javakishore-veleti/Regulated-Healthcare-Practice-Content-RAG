@@ -1,6 +1,8 @@
 from typing import Protocol
 
 from common.dtos import (
+    CheckGuardrailsReqDTO,
+    CheckGuardrailsRespDTO,
     GenerateGroundedDraftReqDTO,
     GenerateGroundedDraftRespDTO,
     HybridRetrieveReqDTO,
@@ -8,6 +10,7 @@ from common.dtos import (
 )
 from common.return_codes import RC_OK
 from common.tracing import traced
+from service.guardrails.guardrails_service import IGuardrailsService
 from service.retrieval_service import IRetrievalService
 
 
@@ -31,8 +34,13 @@ class GenerationService:
     bracket this method.
     """
 
-    def __init__(self, retrieval_service: IRetrievalService) -> None:
+    def __init__(
+        self,
+        retrieval_service: IRetrievalService,
+        guardrails_service: IGuardrailsService | None = None,
+    ) -> None:
         self._retrieval = retrieval_service
+        self._guardrails = guardrails_service
 
     @traced("generation.grounded_draft")
     async def generate_grounded_draft(
@@ -76,10 +84,32 @@ class GenerationService:
             "status": "skipped",
             "reason": "Self-RAG faithfulness loop not yet wired (separate slice).",
         }
-        ctx["guardrails"] = {
-            "status": "skipped",
-            "reason": "Banned-phrase / forbidden-claim detection not yet wired (separate slice).",
-        }
+
+        if self._guardrails is not None:
+            gr_req = CheckGuardrailsReqDTO(text=ctx["draft_markdown"])
+            gr_resp = CheckGuardrailsRespDTO()
+            gr_rc = await self._guardrails.check_text(gr_req, gr_resp)
+            if gr_rc == RC_OK:
+                gr = gr_resp.respCtxData
+                ctx["guardrails"] = {
+                    "status": "ok",
+                    "policy_id": gr.get("policy_id"),
+                    "rule_count": gr.get("rule_count"),
+                    "passed": gr.get("passed"),
+                    "violation_count": gr.get("violation_count"),
+                    "max_severity": gr.get("max_severity"),
+                    "violations": gr.get("violations"),
+                }
+            else:
+                ctx["guardrails"] = {
+                    "status": "error",
+                    "reason": f"guardrails check returned rc={gr_rc}",
+                }
+        else:
+            ctx["guardrails"] = {
+                "status": "skipped",
+                "reason": "Guardrails service not configured for this deployment.",
+            }
         return RC_OK
 
     @staticmethod

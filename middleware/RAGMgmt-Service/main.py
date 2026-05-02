@@ -43,8 +43,11 @@ async def lifespan(app: FastAPI):
     app.state.patterns_service = RagPatternsService(patterns_dao)
     app.state.chunking_service = ChunkingService()
     app.state.retrieval_service = retrieval_service
-    app.state.generation_service = GenerationService(retrieval_service)
     app.state.guardrails_service = guardrails_service
+    app.state.generation_service = GenerationService(
+        retrieval_service=retrieval_service,
+        guardrails_service=guardrails_service,
+    )
 
     try:
         yield
