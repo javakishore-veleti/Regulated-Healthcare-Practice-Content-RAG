@@ -65,6 +65,7 @@ def _format_citations_for_prompt(citations: list[dict]) -> str:
 
 class AnthropicDrafter:
     name = "anthropic_claude_drafter"
+    supports_regeneration = True  # LLM can produce a different draft from a hint
 
     def __init__(self, api_key: str, model: str, max_tokens: int) -> None:
         self._client = AsyncAnthropic(api_key=api_key)

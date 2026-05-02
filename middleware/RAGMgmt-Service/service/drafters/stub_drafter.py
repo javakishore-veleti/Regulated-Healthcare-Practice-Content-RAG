@@ -7,6 +7,7 @@ from common.tracing import traced
 
 class StubDrafter:
     name = "stub_compose_with_citations"
+    supports_regeneration = False  # deterministic — same input → same output
 
     @traced("drafter.stub.compose")
     async def compose_draft(
