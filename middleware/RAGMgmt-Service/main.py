@@ -13,6 +13,7 @@ from api import (
     retrieval_router,
 )
 from common.db import build_pool, build_vectors_pool
+from common.embedding_factory import build_embedder
 from common.langfuse_client import LangfuseClient
 from common.otel import init_otel
 from common.settings import get_settings
@@ -53,7 +54,10 @@ async def lifespan(app: FastAPI):
     retrieval_dao = PostgresRetrievalDao(vectors_pool)
 
     reranker = build_reranker(settings)
-    retrieval_service = RetrievalService(retrieval_dao, reranker=reranker)
+    embedder = build_embedder(settings)
+    retrieval_service = RetrievalService(
+        retrieval_dao, reranker=reranker, embedder=embedder,
+    )
     guardrails_policy_path = Path(__file__).parent / "service" / "guardrails" / "policy.yaml"
     guardrails_service = GuardrailsService(policy_path=guardrails_policy_path)
     faithfulness_service = FaithfulnessService()

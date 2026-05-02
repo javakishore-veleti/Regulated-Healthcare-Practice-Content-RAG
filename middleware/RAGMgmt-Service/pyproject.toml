@@ -42,5 +42,14 @@ bedrock-drafter = ["boto3>=1.34"]
 # isn't installed, so dev / CI doesn't take the cold-load hit.
 cross-encoder-rerank = ["sentence-transformers>=2.2"]
 
+# Real embedder — replaces the SHA-256 hash stub with a learned embedder
+# (default sentence-transformers/all-MiniLM-L6-v2, 384-dim, ~80 MB model).
+# Falls back to stub when the dep is missing OR RAG_EMBEDDER_MODEL is unset.
+# Shares torch with cross-encoder-rerank, so installing both is incremental.
+# WARNING: a query embedded with this backend against a stub-embedded corpus
+# produces meaningless similarity scores — the DAG-side embed_via_pgvector
+# handler needs the same model swap, and the corpus needs re-embedding.
+real-embedder = ["sentence-transformers>=2.2"]
+
 [tool.uv]
 package = false

@@ -62,6 +62,18 @@ class Settings(BaseSettings):
     rag_reranker_alpha: float = 0.5
     rag_cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
+    # Embedder backend — query-side embedding for the dense retrieval leg.
+    # `stub` is the SHA-256-derived embedder (default; deterministic, no deps,
+    # but not semantically meaningful). `sentence_transformer` is a real
+    # learned embedder via the [real-embedder] extra.
+    #
+    # NOTE: switching to sentence_transformer also requires re-embedding the
+    # CORPUS — the DAG-side embedder in handlers/embed_via_pgvector.py needs
+    # the same model swap. A query embedded with sentence_transformer against
+    # a stub-embedded corpus produces meaningless similarity scores.
+    rag_embedder_backend: str = "stub"
+    rag_embedder_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+
     # Langfuse — the README's primary observability mechanism. Captures
     # prompt/completion + retrieved-chunk metadata + faithfulness scores per
     # generation request. All three fields unset → gracefully disabled (no-op).

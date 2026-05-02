@@ -7,7 +7,7 @@ from common.dtos import (
     ThreeCorporaRetrieveReqDTO,
     ThreeCorporaRetrieveRespDTO,
 )
-from common.embedding import stub_embed, vector_literal
+from common.embedding import IEmbedder, StubEmbedder, vector_literal
 from common.return_codes import RC_OK
 from common.tracing import traced
 from dao.retrieval_dao import IRetrievalDao
@@ -40,9 +40,11 @@ class RetrievalService:
         self,
         retrieval_dao: IRetrievalDao,
         reranker: IReranker | None = None,
+        embedder: IEmbedder | None = None,
     ) -> None:
         self._dao = retrieval_dao
         self._reranker: IReranker = reranker or IdentityReranker()
+        self._embedder: IEmbedder = embedder or StubEmbedder()
 
     @traced("retrieval.hybrid_search")
     async def hybrid_search(
@@ -69,7 +71,7 @@ class RetrievalService:
             "returned": len(top),
         }
         resp.respCtxData["reranker"] = self._reranker.name
-        resp.respCtxData["embedder"] = "stub_sha256_dim384"
+        resp.respCtxData["embedder"] = self._embedder.name
         return RC_OK
 
     @traced("retrieval.three_corpora_search")
@@ -114,7 +116,7 @@ class RetrievalService:
 
         resp.respCtxData["per_corpus"] = per_corpus
         resp.respCtxData["query"] = req.query
-        resp.respCtxData["embedder"] = "stub_sha256_dim384"
+        resp.respCtxData["embedder"] = self._embedder.name
         resp.respCtxData["reranker"] = self._reranker.name
         resp.respCtxData["corpus_count"] = len(per_corpus)
         resp.respCtxData["total_hits"] = sum(len(c["hits"]) for c in per_corpus)
@@ -127,7 +129,7 @@ class RetrievalService:
         rrf_k: int,
         dataset_names: list[str] | None,
     ) -> tuple[list[dict], int, int]:
-        qvec_literal = vector_literal(stub_embed(query))
+        qvec_literal = vector_literal(self._embedder.embed(query))
         lexical_hits = await self._dao.lexical_search(
             query=query, top_k=top_k_per_leg, dataset_names=dataset_names
         )
