@@ -47,13 +47,20 @@ class Settings(BaseSettings):
     # extra times. Capped low (1) for cost; real production tuning lives downstream.
     max_regenerate_attempts: int = 1
 
-    # Cross-encoder rerank — the third stage of Hybrid+Rerank. `token_overlap`
-    # is a pure-stdlib reranker that blends RRF with query/chunk token overlap.
-    # `identity` falls back to truncate-only (the pre-slice behavior). A real
-    # cross-encoder (e.g. ms-marco-MiniLM-L-6-v2) plugs in via the same
-    # `IReranker` interface — see service/rerank/reranker.py.
+    # Cross-encoder rerank — the third stage of Hybrid+Rerank.
+    #
+    # Backends:
+    #   * token_overlap  — pure-stdlib RRF + Jaccard blend (default).
+    #   * identity       — truncate-only (passthrough baseline).
+    #   * cross_encoder  — learned reranker via sentence-transformers
+    #                      (e.g. ms-marco-MiniLM-L-6-v2). Requires the
+    #                      [cross-encoder-rerank] extra; ~2 GB transitive
+    #                      deps + ~90 MB model download on first use. Falls
+    #                      back to token_overlap when either the dep or
+    #                      the model name is missing.
     rag_reranker_backend: str = "token_overlap"
     rag_reranker_alpha: float = 0.5
+    rag_cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # Langfuse — the README's primary observability mechanism. Captures
     # prompt/completion + retrieved-chunk metadata + faithfulness scores per

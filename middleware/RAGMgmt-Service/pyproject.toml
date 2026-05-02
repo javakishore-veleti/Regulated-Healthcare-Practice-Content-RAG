@@ -36,5 +36,11 @@ langfuse = ["langfuse>=2.0"]
 # checkout works without AWS credentials.
 bedrock-drafter = ["boto3>=1.34"]
 
+# Cross-encoder reranker — README's named third stage of Hybrid+Rerank.
+# Heavy: pulls torch (~2 GB transitive) + ms-marco-MiniLM model (~90 MB on
+# first use). Falls back to token_overlap (pure stdlib) when this extra
+# isn't installed, so dev / CI doesn't take the cold-load hit.
+cross-encoder-rerank = ["sentence-transformers>=2.2"]
+
 [tool.uv]
 package = false
