@@ -1,0 +1,112 @@
+:host { display: block; }
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  flex-wrap: wrap;
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.6rem;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface);
+  }
+  .page-subtitle {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    max-width: 880px;
+    line-height: 1.5;
+  }
+  .dataset-select { min-width: 360px; }
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--rhc-status-failure-bg);
+  color: var(--rhc-status-failure);
+  border: 1px solid color-mix(in srgb, var(--rhc-status-failure) 40%, transparent);
+}
+
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.urls-card,
+.add-card {
+  background: var(--mat-sys-surface-container-lowest);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 10px;
+}
+
+.urls-table {
+  width: 100%;
+
+  th, td { padding: 0.55rem 0.7rem; vertical-align: top; }
+
+  th {
+    color: var(--mat-sys-on-surface-variant);
+    font-weight: 500;
+    background: var(--mat-sys-surface-container-low);
+  }
+
+  .url-label {
+    color: var(--mat-sys-on-surface);
+    font-weight: 500;
+  }
+  .url-notes {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.78rem;
+    margin-top: 0.15rem;
+    line-height: 1.35;
+  }
+  .url-link {
+    color: var(--rhc-side-nav-active-fg, var(--rhc-top-nav-bg));
+    text-decoration: none;
+    word-break: break-all;
+    font-size: 0.85rem;
+
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.opt-type {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.85rem;
+}
+
+.muted { color: var(--mat-sys-on-surface-variant); font-style: italic; }
+
+.add-grid {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 0.5fr 1fr 0.6fr 0.6fr;
+  gap: 0.6rem;
+  align-items: center;
+
+  .add-btn { height: 56px; }
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+code {
+  background: var(--mat-sys-surface-container-low);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}

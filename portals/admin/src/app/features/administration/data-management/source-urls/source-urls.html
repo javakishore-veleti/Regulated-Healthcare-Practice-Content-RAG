@@ -1,0 +1,173 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Source URLs</h1>
+      <p class="page-subtitle">
+        Curate the URL list the regulator-guidelines fetcher pulls each ingest run.
+        Active URLs are read at DAG run time via
+        <code>GET /datasets/&lt;name&gt;/source-urls?only_active=true</code>.
+        Toggle, add, or remove without code changes.
+      </p>
+    </div>
+
+    <mat-form-field appearance="outline" class="dataset-select">
+      <mat-label>Dataset</mat-label>
+      <mat-select
+        [value]="selectedDataset()"
+        (valueChange)="selectDataset($event)"
+        [disabled]="!datasets().length"
+      >
+        @for (d of datasets(); track d.dataset_name) {
+          <mat-option [value]="d.dataset_name">
+            {{ d.dataset_name }}
+            <span class="opt-type">— {{ d.dataset_type }}</span>
+          </mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="error-banner">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMessage() }}</span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-row">
+      <mat-spinner diameter="28"></mat-spinner>
+      <span>Loading…</span>
+    </div>
+  }
+
+  @if (selectedDataset(); as ds) {
+    <mat-card class="urls-card">
+      <mat-card-header>
+        <mat-card-title>{{ ds }}</mat-card-title>
+        <mat-card-subtitle>
+          {{ urls().length }} URL{{ urls().length === 1 ? '' : 's' }}
+          · {{ fetchableUrls().length }} active (will be fetched on next ingest)
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (urls().length) {
+          <table mat-table [dataSource]="urls()" class="urls-table">
+            <ng-container matColumnDef="position">
+              <th mat-header-cell *matHeaderCellDef>Pos</th>
+              <td mat-cell *matCellDef="let r">{{ r.position }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="label">
+              <th mat-header-cell *matHeaderCellDef>Label</th>
+              <td mat-cell *matCellDef="let r">
+                <div class="url-label">{{ r.label || '—' }}</div>
+                @if (r.notes) {
+                  <div class="url-notes">{{ r.notes }}</div>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="url">
+              <th mat-header-cell *matHeaderCellDef>URL</th>
+              <td mat-cell *matCellDef="let r">
+                <a [href]="r.url" target="_blank" rel="noopener" class="url-link" [title]="r.url">
+                  {{ r.url }}
+                </a>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="is_active">
+              <th mat-header-cell *matHeaderCellDef>Active</th>
+              <td mat-cell *matCellDef="let r">
+                <mat-slide-toggle
+                  [checked]="r.is_active"
+                  (change)="toggleActive(r, $event.checked)"
+                ></mat-slide-toggle>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let r">
+                <button mat-icon-button color="warn" (click)="deleteUrl(r)" [title]="'Delete'">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr mat-row *matRowDef="let row; columns: columns"></tr>
+          </table>
+        } @else if (!loading()) {
+          <div class="muted">No URLs configured for this dataset yet.</div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="add-card">
+      <mat-card-header>
+        <mat-card-title>Add URL</mat-card-title>
+        <mat-card-subtitle>
+          Must start with <code>http://</code> or <code>https://</code>.
+          Duplicate URLs for the same dataset are rejected.
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="add-grid">
+          <mat-form-field appearance="outline" class="add-url">
+            <mat-label>URL</mat-label>
+            <input
+              matInput
+              [value]="newUrl().url"
+              (input)="setNewUrlField('url', $any($event.target).value)"
+              placeholder="https://example.com/path"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="add-label">
+            <mat-label>Label</mat-label>
+            <input
+              matInput
+              [value]="newUrl().label"
+              (input)="setNewUrlField('label', $any($event.target).value)"
+              placeholder="optional human-readable label"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="add-position">
+            <mat-label>Position</mat-label>
+            <input
+              matInput
+              type="number"
+              [value]="newUrl().position"
+              (input)="setNewUrlField('position', +$any($event.target).value)"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="add-notes">
+            <mat-label>Notes</mat-label>
+            <input
+              matInput
+              [value]="newUrl().notes"
+              (input)="setNewUrlField('notes', $any($event.target).value)"
+              placeholder="optional"
+            />
+          </mat-form-field>
+
+          <mat-checkbox
+            [checked]="newUrl().is_active"
+            (change)="setNewUrlField('is_active', $event.checked)"
+          >
+            Active
+          </mat-checkbox>
+
+          <button mat-flat-button color="primary" class="add-btn" (click)="addUrl()">
+            <mat-icon>add</mat-icon>
+            <span>Add</span>
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

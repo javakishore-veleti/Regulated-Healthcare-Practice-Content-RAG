@@ -53,6 +53,10 @@ export class ShellComponent {
               label: 'Initial DataSet',
               link: '/administration/data-management/initial-dataset',
             },
+            {
+              label: 'Source URLs',
+              link: '/administration/data-management/source-urls',
+            },
           ],
         },
       ];

@@ -19,6 +19,13 @@ export const routes: Routes = [
           ).then((m) => m.InitialDatasetComponent),
       },
       {
+        path: 'administration/data-management/source-urls',
+        loadComponent: () =>
+          import(
+            './features/administration/data-management/source-urls/source-urls'
+          ).then((m) => m.SourceUrlsComponent),
+      },
+      {
         path: 'rag-management',
         pathMatch: 'full',
         redirectTo: 'rag-management/patterns',
