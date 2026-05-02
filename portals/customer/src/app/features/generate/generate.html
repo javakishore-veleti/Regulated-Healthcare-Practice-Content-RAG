@@ -1,0 +1,135 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Generate Content</h1>
+      <p class="page-subtitle">
+        Compliance-grounded content for allied-health practices in regulated jurisdictions.
+        Every claim in the draft maps to a citation row in the indexed corpus —
+        no fabrication, no banned phrases (guardrail layer lands in a follow-up slice).
+      </p>
+    </div>
+  </header>
+
+  <mat-card class="form-card">
+    <mat-card-content>
+      <div class="form-grid">
+        <mat-form-field appearance="outline" class="topic-field">
+          <mat-label>Topic</mat-label>
+          <input
+            matInput
+            [value]="topic()"
+            (input)="setTopic($any($event.target).value)"
+            placeholder="e.g., What AHPRA's advertising rules say about testimonials"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="voice-field">
+          <mat-label>Voice profile</mat-label>
+          <input
+            matInput
+            [value]="voiceProfile()"
+            (input)="setVoice($any($event.target).value)"
+            placeholder="professional, plain English"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="topk-field">
+          <mat-label>Top K</mat-label>
+          <input
+            matInput
+            type="number"
+            min="1"
+            max="10"
+            [value]="topK()"
+            (input)="setTopK(+$any($event.target).value)"
+          />
+        </mat-form-field>
+
+        <button
+          mat-flat-button
+          color="primary"
+          class="generate-btn"
+          [disabled]="loading()"
+          (click)="generate()"
+        >
+          @if (loading()) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>auto_awesome</mat-icon>
+          }
+          <span>Generate</span>
+        </button>
+      </div>
+
+      @if (errorMessage()) {
+        <div class="error-banner">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  @if (draft(); as d) {
+    <div class="result-grid">
+      <mat-card class="draft-card">
+        <mat-card-header>
+          <mat-card-title>Draft</mat-card-title>
+          <mat-card-subtitle>
+            generator: <code>{{ d.generator }}</code>
+            · voice: <code>{{ d.voice_profile }}</code>
+            · faithfulness: <span class="status-pill">{{ d.faithfulness.status }}</span>
+            · guardrails: <span class="status-pill">{{ d.guardrails.status }}</span>
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <article class="draft-body">
+            @for (block of draftBlocks(); track $index) {
+              @switch (block.type) {
+                @case ('h1') { <h2 class="draft-h1">{{ block.text }}</h2> }
+                @case ('h2') { <h3 class="draft-h2">{{ block.text }}</h3> }
+                @case ('h3') { <h4 class="draft-h3">{{ block.text }}</h4> }
+                @case ('blockquote') { <blockquote>{{ block.text }}</blockquote> }
+                @case ('hr') { <hr /> }
+                @case ('meta') { <p class="draft-meta">{{ block.text }}</p> }
+                @default { <p>{{ block.text }}</p> }
+              }
+            }
+          </article>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="citations-card">
+        <mat-card-header>
+          <mat-card-title>Citations</mat-card-title>
+          <mat-card-subtitle>
+            {{ citations().length }} ground-truth source{{ citations().length === 1 ? '' : 's' }}
+            from <code>child_chunk_embeddings</code>
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <ol class="citation-list">
+            @for (c of citations(); track c.marker) {
+              <li class="citation-item">
+                <div class="citation-head">
+                  <span class="citation-marker">{{ c.marker }}</span>
+                  <span class="citation-source">
+                    <code>{{ c.dataset_name }}</code>
+                    · page {{ c.page_index }}
+                    · {{ c.parent_id }}
+                  </span>
+                  @if (c.rrf_score !== null) {
+                    <span class="citation-score" title="RRF fused score">
+                      {{ c.rrf_score!.toFixed(4) }}
+                    </span>
+                  }
+                </div>
+                <div class="citation-snippet">{{ c.snippet }}</div>
+              </li>
+            }
+          </ol>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+</div>
