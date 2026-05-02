@@ -26,12 +26,21 @@ class Settings(BaseSettings):
 
     # LLM drafter selection. `auto` picks AnthropicDrafter when anthropic_api_key is
     # set, falls back to StubDrafter otherwise. Force a specific drafter with
-    # `stub` or `anthropic`. The Excel architecture calls for Bedrock Claude Opus
-    # 4.7 for drafting; using the direct Anthropic API here for local dev.
+    # `stub`, `anthropic`, or `bedrock`. The README architecture calls for Bedrock
+    # Claude Opus for drafting; the direct Anthropic API path is the local-dev
+    # default.
     llm_drafter: str = "auto"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-opus-4-7"
     anthropic_max_tokens: int = 1500
+
+    # Bedrock drafter — used when LLM_DRAFTER=bedrock. Requires the optional
+    # extra: `pip install '.[bedrock-drafter]'`. Credentials come from the
+    # standard AWS chain (env, ~/.aws/credentials, IRSA, SSO). Set
+    # BEDROCK_MODEL_ID to the Bedrock identifier of your Claude model
+    # (e.g. an inference profile like `us.anthropic.claude-opus-4-7-…-v1:0`).
+    bedrock_model_id: str = ""
+    bedrock_region: str = "us-east-1"
 
     # Self-RAG regenerate loop: when a draft fails the faithfulness threshold AND the
     # active drafter supports regeneration, recompose with a hint up to this many

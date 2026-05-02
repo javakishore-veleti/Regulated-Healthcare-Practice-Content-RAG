@@ -19,9 +19,7 @@ from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
 from dao.retrieval_dao import PostgresRetrievalDao
 from service.chunking_service import ChunkingService
-from service.drafters.anthropic_drafter import AnthropicDrafter
-from service.drafters.drafter import IDrafter
-from service.drafters.stub_drafter import StubDrafter
+from service.drafters.factory import build_drafter
 from service.faithfulness_service import FaithfulnessService
 from service.generation_service import GenerationService
 from service.guardrails.guardrails_service import GuardrailsService
@@ -60,32 +58,6 @@ def _build_reranker(settings) -> IReranker:
     return TokenOverlapReranker(alpha=settings.rag_reranker_alpha)
 
 
-def _build_drafter(settings) -> IDrafter:
-    """Pick a drafter per `LLM_DRAFTER`. `auto` uses Anthropic when the key is set.
-
-    `ANTHROPIC_API_KEY` is already resolved at Settings load time — literal
-    values pass through; `aws-sm://...`, `azure-kv://...`, `gcp-sm://...`
-    references are resolved against the appropriate cloud secret manager.
-    See common/secrets.py and the field_validator on Settings.
-    """
-    mode = (settings.llm_drafter or "auto").lower()
-    api_key = settings.anthropic_api_key
-    if mode in ("anthropic", "auto") and api_key:
-        LOGGER.info("Using AnthropicDrafter with model=%s", settings.anthropic_model)
-        return AnthropicDrafter(
-            api_key=api_key,
-            model=settings.anthropic_model,
-            max_tokens=settings.anthropic_max_tokens,
-        )
-    if mode == "anthropic":
-        LOGGER.warning(
-            "LLM_DRAFTER=anthropic but ANTHROPIC_API_KEY is unset / unresolved; "
-            "falling back to stub."
-        )
-    LOGGER.info("Using StubDrafter (deterministic, no LLM call)")
-    return StubDrafter()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -111,7 +83,7 @@ async def lifespan(app: FastAPI):
     guardrails_policy_path = Path(__file__).parent / "service" / "guardrails" / "policy.yaml"
     guardrails_service = GuardrailsService(policy_path=guardrails_policy_path)
     faithfulness_service = FaithfulnessService()
-    drafter = _build_drafter(settings)
+    drafter = build_drafter(settings)
 
     app.state.patterns_service = RagPatternsService(patterns_dao)
     app.state.chunking_service = ChunkingService()
