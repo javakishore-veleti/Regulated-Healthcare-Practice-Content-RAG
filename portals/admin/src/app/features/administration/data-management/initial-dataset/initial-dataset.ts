@@ -12,13 +12,13 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 
+import { AppConfigService } from '../../../../core/api/app-config.service';
 import { DatamgmtApiService } from '../../../../core/api/datamgmt-api.service';
 import {
   DatasetRow,
   EndpointRow,
   IngestRunRow,
 } from '../../../../core/api/api.types';
-import { environment } from '../../../../../environments/environment';
 
 interface DatasetUiState {
   selectedEndpointName: string | null;
@@ -49,6 +49,7 @@ interface DatasetUiState {
 export class InitialDatasetComponent implements OnInit {
   private readonly api = inject(DatamgmtApiService);
   private readonly snack = inject(MatSnackBar);
+  private readonly appConfig = inject(AppConfigService);
 
   readonly datasets = signal<DatasetRow[]>([]);
   readonly endpoints = signal<EndpointRow[]>([]);
@@ -72,15 +73,16 @@ export class InitialDatasetComponent implements OnInit {
     'workflow',
   ];
 
-  readonly airflowUiBase = environment.airflowUiBase;
+  readonly airflowUiBase = this.appConfig.airflowUiBase;
 
   airflowRunUrl(row: IngestRunRow): string | null {
-    if (!row.workflow_dag_id || !row.workflow_run_id || !this.airflowUiBase) {
+    const base = this.airflowUiBase();
+    if (!row.workflow_dag_id || !row.workflow_run_id || !base) {
       return null;
     }
     const dagId = encodeURIComponent(row.workflow_dag_id);
     const runId = encodeURIComponent(row.workflow_run_id);
-    return `${this.airflowUiBase.replace(/\/$/, '')}/dags/${dagId}/grid?dag_run_id=${runId}`;
+    return `${base.replace(/\/$/, '')}/dags/${dagId}/grid?dag_run_id=${runId}`;
   }
 
   ngOnInit(): void {
