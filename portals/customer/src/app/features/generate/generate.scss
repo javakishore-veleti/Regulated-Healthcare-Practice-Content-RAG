@@ -24,10 +24,89 @@
 .form-card,
 .draft-card,
 .citations-card,
-.guardrails-card {
+.guardrails-card,
+.faithfulness-card {
   background: var(--mat-sys-surface-container-lowest);
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 10px;
+}
+
+.faithfulness-card {
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 1rem;
+    font-weight: 500;
+
+    .title-icon {
+      color: var(--rhc-status-skipped);
+      &.shield-ok { color: var(--rhc-status-success); }
+    }
+  }
+}
+
+.faithfulness-warn,
+.faithfulness-clean {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 0.6rem;
+}
+
+.faithfulness-warn {
+  background: var(--rhc-status-skipped-bg);
+  color: var(--rhc-status-skipped);
+  border: 1px solid color-mix(in srgb, var(--rhc-status-skipped) 35%, transparent);
+}
+
+.faithfulness-clean {
+  background: var(--rhc-status-success-bg);
+  color: var(--rhc-status-success);
+  border: 1px solid color-mix(in srgb, var(--rhc-status-success) 35%, transparent);
+}
+
+.claim-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  .claim-item {
+    display: grid;
+    grid-template-columns: 22px 50px 1fr;
+    gap: 0.4rem;
+    align-items: baseline;
+    padding: 0.3rem 0.5rem;
+    background: var(--mat-sys-surface-container-low);
+    border-radius: 6px;
+    font-size: 0.82rem;
+
+    &.unsupported {
+      background: color-mix(in srgb, var(--rhc-status-skipped) 12%, transparent);
+
+      .claim-mark { color: var(--rhc-status-skipped); }
+    }
+
+    .claim-mark {
+      font-weight: 600;
+      color: var(--rhc-status-success);
+    }
+    .claim-overlap {
+      font-variant-numeric: tabular-nums;
+      color: var(--mat-sys-on-surface-variant);
+      font-size: 0.78rem;
+    }
+    .claim-text {
+      color: var(--mat-sys-on-surface);
+      line-height: 1.4;
+    }
+  }
 }
 
 .side-stack {

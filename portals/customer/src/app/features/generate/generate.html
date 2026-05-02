@@ -78,7 +78,7 @@
           <mat-card-subtitle>
             generator: <code>{{ d.generator }}</code>
             · voice: <code>{{ d.voice_profile }}</code>
-            · faithfulness: <span class="status-pill">{{ d.faithfulness.status }}</span>
+            · faithfulness: <span [class]="faithfulnessHeadlineClass()">{{ faithfulnessHeadlineLabel() }}</span>
             · guardrails: <span [class]="guardrailHeadlineClass()">{{ guardrailHeadlineLabel() }}</span>
           </mat-card-subtitle>
         </mat-card-header>
@@ -131,6 +131,51 @@
             </ol>
           </mat-card-content>
         </mat-card>
+
+        @if (faithfulness(); as f) {
+          <mat-card class="faithfulness-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon class="title-icon" [class.shield-ok]="f.passed">{{ f.passed ? 'fact_check' : 'rule' }}</mat-icon>
+                Faithfulness
+              </mat-card-title>
+              <mat-card-subtitle>
+                @if (f.status === 'ok') {
+                  scorer <code>{{ f.scorer }}</code>
+                  · {{ f.supported_count }} / {{ f.sentence_count }} sentences supported
+                  · threshold {{ f.overall_threshold }}
+                } @else {
+                  status <code>{{ f.status }}</code>
+                  @if (f.reason) { · {{ f.reason }} }
+                }
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              @if (f.status === 'ok' && f.regenerate_recommended) {
+                <div class="faithfulness-warn">
+                  <mat-icon>change_circle</mat-icon>
+                  <span>Score below threshold — a real LLM drafter would regenerate. The stub composer is deterministic, so this run is shown as-is.</span>
+                </div>
+              } @else if (f.status === 'ok' && f.passed) {
+                <div class="faithfulness-clean">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>Draft passes the Self-RAG faithfulness threshold.</span>
+                </div>
+              }
+              @if (f.per_sentence_preview && f.per_sentence_preview.length > 0) {
+                <ul class="claim-list">
+                  @for (ps of f.per_sentence_preview; track $index) {
+                    <li class="claim-item" [class.unsupported]="!ps.supported">
+                      <span class="claim-mark">{{ ps.supported ? '✓' : '✗' }}</span>
+                      <span class="claim-overlap">{{ (ps.overlap_ratio * 100).toFixed(0) }}%</span>
+                      <span class="claim-text">{{ ps.sentence }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </mat-card-content>
+          </mat-card>
+        }
 
         @if (guardrails(); as g) {
           <mat-card class="guardrails-card">

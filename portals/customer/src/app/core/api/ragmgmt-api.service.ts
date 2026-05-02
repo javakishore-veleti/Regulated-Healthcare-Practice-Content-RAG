@@ -46,6 +46,29 @@ export interface GuardrailStatus {
   reason?: string;
 }
 
+export interface FaithfulnessSentence {
+  sentence: string;
+  token_count: number;
+  overlap_ratio: number;
+  supported: boolean;
+  reason?: string | null;
+}
+
+export interface FaithfulnessStatus {
+  status: 'ok' | 'skipped' | 'error';
+  scorer?: string;
+  score?: number;
+  passed?: boolean;
+  overall_threshold?: number;
+  per_sentence_threshold?: number;
+  sentence_count?: number;
+  supported_count?: number;
+  evidence_free_count?: number;
+  regenerate_recommended?: boolean;
+  per_sentence_preview?: FaithfulnessSentence[];
+  reason?: string;
+}
+
 export interface GenerateDraftResponse {
   topic: string;
   voice_profile: string;
@@ -56,7 +79,7 @@ export interface GenerateDraftResponse {
     legs: { lexical: { hit_count: number }; dense: { hit_count: number } };
     fusion: { method: string; rrf_k: number; fused_candidate_count: number; returned: number };
   };
-  faithfulness: { status: string; reason?: string };
+  faithfulness: FaithfulnessStatus;
   guardrails: GuardrailStatus;
 }
 

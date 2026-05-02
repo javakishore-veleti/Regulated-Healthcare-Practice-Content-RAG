@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import {
   DraftCitation,
+  FaithfulnessStatus,
   GenerateDraftResponse,
   GuardrailStatus,
   GuardrailViolation,
@@ -64,6 +65,29 @@ export class GenerateComponent {
   readonly guardrailViolations = computed<GuardrailViolation[]>(
     () => this.guardrails()?.violations ?? []
   );
+
+  readonly faithfulness = computed<FaithfulnessStatus | null>(
+    () => this.draft()?.faithfulness ?? null
+  );
+
+  faithfulnessHeadlineClass(): string {
+    const f = this.faithfulness();
+    if (!f) return 'pill pill-pending';
+    if (f.status === 'skipped') return 'pill pill-pending';
+    if (f.status === 'error') return 'pill pill-failure';
+    if (f.passed) return 'pill pill-success';
+    return 'pill pill-skipped';
+  }
+
+  faithfulnessHeadlineLabel(): string {
+    const f = this.faithfulness();
+    if (!f) return 'no draft yet';
+    if (f.status === 'skipped') return 'faithfulness skipped';
+    if (f.status === 'error') return 'faithfulness error';
+    const pct = f.score != null ? (f.score * 100).toFixed(0) : '?';
+    if (f.passed) return `score ${pct}% · passed`;
+    return `score ${pct}% · regen suggested`;
+  }
 
   guardrailHeadlineClass(): string {
     const g = this.guardrails();
