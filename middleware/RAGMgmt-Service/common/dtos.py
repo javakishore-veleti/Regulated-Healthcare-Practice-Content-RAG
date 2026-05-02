@@ -48,3 +48,21 @@ class HybridRetrieveRespDTO(_BaseDTO):
     retrieval legs and the fused output."""
 
     respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class GenerateGroundedDraftReqDTO(_BaseDTO):
+    """Request DTO for compliance-grounded content generation. The topic drives
+    retrieval; voice_profile is a free-form hint the generator can use to adapt tone
+    once a real LLM client lands (today's stub composes excerpts verbatim)."""
+
+    topic: str = Field(..., min_length=1)
+    dataset_name: str | None = None
+    top_k: int = Field(default=5, ge=1, le=10)
+    voice_profile: str | None = None
+
+
+class GenerateGroundedDraftRespDTO(_BaseDTO):
+    """Returns the draft markdown + an aligned `citations` list so callers can
+    render inline footnotes deterministically."""
+
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
