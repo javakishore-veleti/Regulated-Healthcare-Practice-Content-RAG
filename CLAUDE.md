@@ -113,3 +113,17 @@ Use a **Liquibase-style migration** approach (Liquibase itself or a Python equiv
 ## Deployment target
 
 README mentions an **AWS Architecture** section (currently empty). Assume AWS as the deployment target when making infra-shaped decisions, but confirm specifics with the user — nothing is committed yet. **Do not bake "local" assumptions into business logic** (Airflow executor choice, file paths, storage SDKs, OpenSearch hostnames, etc.) — those are environment concerns and belong behind the endpoint abstraction or behind environment-specific config, never hard-coded.
+
+## Deployment portability (k8s on AWS / Azure / GCP and other containerized targets)
+
+Every artifact in this repo must run unchanged in any of: AWS EKS, Azure AKS, GCP GKE, or another containerized target. The same image / build, just with different config. Hard rules:
+
+- **No hardcoded host URLs anywhere in code.** All external service URLs (FastAPI base, Airflow API, Airflow UI, OpenSearch, vector DBs, …) come from env vars (Python services), `pydantic-settings`, or Angular environment files / runtime-config endpoints (`/api/config`). The string `localhost` is acceptable **only** as a `location_type` value in the endpoint abstraction or as a dev-time default that an env var overrides.
+- **Filesystem paths are not portable across environments.** The `localhost` `location_type` is dev-mode by design; production deploys ingest into cloud-native endpoints (`aws_s3`, `azure_blob`, `gcp_gcs`, etc.). If a `localhost` endpoint is needed in k8s for some reason, it must be backed by a PersistentVolume mounted at the resolved path; never assume the pod's writable filesystem is durable.
+- **Credentials never live in image or repo.** `.env` is for local dev only; in cloud k8s, secrets come from AWS Secrets Manager / Azure Key Vault / GCP Secret Manager, mounted as env vars or projected files. Code reads via the same `pydantic-settings` interface either way.
+- **Run as non-root.** Container images already do (`AIRFLOW_UID=50000`, FastAPI inherits the base image's non-root user); do not regress.
+- **Health endpoints are k8s-shaped.** Every service exposes `/health` (already in DataMgmt-Service) returning a small JSON payload — readiness / liveness probes hit it. Don't put expensive checks in liveness.
+- **The admin portal is a static SPA.** It is served by an ingress / CDN in production, not by `ng serve`. Any URL the portal needs (API base, Airflow UI base, …) comes from a runtime config; do not hardcode.
+- **DAGs must be content-addressed by file path import**, not by Python package import on `sys.path`, since the Airflow image's task subprocess does not get arbitrary paths added (the existing `regulated_healthcare_dataset_ingest.py` uses `importlib.util.spec_from_file_location`; follow that pattern when adding new handlers).
+- **Stateless services scale horizontally.** No in-process caches that diverge across replicas. Use the DB or a shared cache.
+- **Configuration discovery order** (in services): explicit env var → mounted secret file → cloud secret manager (resolved by an SDK) → safe local default. Never the other way around.
