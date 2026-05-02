@@ -81,6 +81,43 @@ SAMPLE_VOICE_PARAGRAPHS: list[str] = [
     "our online referral form. We aim to acknowledge new referrals within two "
     "business days, and to offer an initial appointment within the timeframe "
     "noted on the referral.",
+
+    # ── Appended in slice s2.x (richer voice corpus) ──────────────────────
+    # Append-only — page_index for the original 8 paragraphs is preserved so
+    # ON CONFLICT skips already-seeded rows on rerun.
+
+    "Scope of practice. Our team provides services within the scope of "
+    "practice each clinician is registered for. If your needs are outside "
+    "our scope or warrant input from a different discipline, we will say so "
+    "at the assessment stage and offer a referral to a suitable practitioner.",
+
+    "Fees, rebates, and bulk billing. Standard consultation fees are listed "
+    "on our fees page and are reviewed annually. Where a Chronic Disease "
+    "Management plan or DVA approval applies, Medicare or DVA rebates may "
+    "reduce the out-of-pocket cost. We do not bulk bill standard "
+    "consultations; specific rebated programs are described individually on "
+    "our fees page.",
+
+    "Accessibility. Our consultation rooms are accessible by lift and have "
+    "step-free entry from the street. We can arrange longer appointment "
+    "slots for patients who need additional time, and we accept National "
+    "Auslan Booking Service interpreters at no charge to the patient. "
+    "Please let us know your access needs at booking so the appropriate "
+    "room and time can be reserved.",
+
+    "Multidisciplinary care. Many presentations benefit from input across "
+    "more than one discipline. Where appropriate, we coordinate with the "
+    "patient's GP, other allied-health practitioners, and treating "
+    "specialists, with the patient's written consent. Care plans are "
+    "shared via secure clinical messaging where the receiving practitioner "
+    "supports it.",
+
+    "Mental-health referral pathway. We are not a mental-health service. "
+    "If a patient discloses concerns about mood, anxiety, or distress, we "
+    "ask whether they have a current treating GP or psychologist, document "
+    "the disclosure, and offer information about the patient's GP and "
+    "Lifeline 13 11 14. Acute risk is escalated to the GP or emergency "
+    "services as clinically indicated.",
 ]
 
 
