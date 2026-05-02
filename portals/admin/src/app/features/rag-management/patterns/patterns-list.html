@@ -1,0 +1,48 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>RAG Patterns</h1>
+      <p class="page-subtitle">
+        The four design patterns Project A grounds every generation against. Sourced
+        live from the RAGMgmt-Service <code>rag_patterns</code> catalog (which seeds
+        from the Excel <em>1_Project_A_Healthcare_Content</em> worksheet).
+      </p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="error-banner">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMessage() }}. Is RAGMgmt-Service running on :8002?</span>
+    </div>
+  }
+
+  @if (loading() && !patterns().length) {
+    <div class="loading-row">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span>Loading patterns…</span>
+    </div>
+  }
+
+  <div class="card-grid">
+    @for (p of patterns(); track p.pattern_key) {
+      <mat-card class="pattern-card">
+        <mat-card-header>
+          <mat-card-title>{{ p.display_name }}</mat-card-title>
+          <mat-card-subtitle>
+            <code>{{ p.pattern_key }}</code>
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="summary">{{ p.summary }}</p>
+          @if (p.excel_source) {
+            <div class="meta-row">
+              <mat-icon class="meta-icon">menu_book</mat-icon>
+              <span>{{ p.excel_source }}</span>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+</div>

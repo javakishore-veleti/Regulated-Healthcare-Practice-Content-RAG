@@ -20,9 +20,14 @@ export const routes: Routes = [
       },
       {
         path: 'rag-management',
+        pathMatch: 'full',
+        redirectTo: 'rag-management/patterns',
+      },
+      {
+        path: 'rag-management/patterns',
         loadComponent: () =>
-          import('./features/rag-management/rag-management').then(
-            (m) => m.RagManagementComponent
+          import('./features/rag-management/patterns/patterns-list').then(
+            (m) => m.RagPatternsListComponent
           ),
       },
     ],

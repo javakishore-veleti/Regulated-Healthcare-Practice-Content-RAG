@@ -60,7 +60,12 @@ export class ShellComponent {
     return [
       {
         label: 'Patterns',
-        children: [{ label: '(coming soon)' }],
+        children: [
+          {
+            label: 'All Patterns',
+            link: '/rag-management/patterns',
+          },
+        ],
       },
     ];
   });
