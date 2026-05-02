@@ -12,4 +12,12 @@ Airflow DAGs for the Project A ingest and downstream RAG workflows. This is the 
 
 | File | DAG ID | Purpose |
 |---|---|---|
-| `regulated_healthcare_dataset_ingest.py` | `regulated_healthcare_dataset_ingest` | Generic ingest entry point. Receives dataset/endpoint context via `dag_run.conf`, dispatches by `location_type`. Currently the localhost handler writes a manifest stub; per-dataset fetchers (AHPRA scraper, PubMed download, etc.) replace the stub slice by slice. |
+| `regulated_healthcare_dataset_ingest.py` | `regulated_healthcare_dataset_ingest` | Orchestrator. Dispatches by `location_type` (destination) and `dataset_type` (fetcher). |
+
+## Per-dataset-type handlers (`handlers/`)
+
+The `handlers/` directory holds plain Python modules that the orchestrator imports and calls — they are excluded from Airflow's DAG scan via `.airflowignore` so they never appear in the DAG list. Add a new handler module + a branch case in `dispatch_by_dataset_type` to support a new `dataset_type`.
+
+| File | Bound `dataset_type` | Purpose |
+|---|---|---|
+| `handlers/ahpra_advertising_rules_fetch.py` | `regulator_guidelines` | Polite HTTP fetch of a configured URL list into `Latest_Ingest/raw/`. Default URL list is a single Wikipedia article on AHPRA while the source-URL admin UI is being built; replace with curated AHPRA / FTC / GMC URLs in a follow-up slice. |

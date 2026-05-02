@@ -47,6 +47,7 @@ class AirflowDagTrigger:
 
         conf = {
             "dataset_name": req.dataset_name,
+            "dataset_type": ctx.get("dataset_type"),
             "endpoint_name": req.endpoint_name,
             "location_type": location_type,
             "location_config": ctx.get("location_config") or {},
