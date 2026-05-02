@@ -1,0 +1,13 @@
+# Per-portal .dockerignore. Build context is this directory; we only need
+# package*.json + src/ + angular.json + tsconfig*.json for the build stage.
+
+node_modules/
+dist/
+.angular/
+.vscode/
+.idea/
+.DS_Store
+*.log
+.env
+.env.local
+proxy.conf.json

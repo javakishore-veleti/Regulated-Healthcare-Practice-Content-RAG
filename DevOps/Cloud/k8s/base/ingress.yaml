@@ -1,7 +1,9 @@
-# Generic, cloud-agnostic Ingress. Path-based routing matches the SPAs'
-# proxy.conf.json so the same `/api/...` URLs work in dev (proxy) and prod
-# (ingress). More-specific paths come first; `/api` is the catch-all to
-# DataMgmt.
+# Generic, cloud-agnostic Ingress. Subdomain-based routing for the SPA portals
+# (avoids the baseHref complications of path-prefixed Angular apps), shared
+# `/api/*` host for the SPAs to call the backends. Path-based API routing
+# matches the SPAs' proxy.conf.json so the same `/api/...` URLs work in dev
+# (proxy) and prod (ingress). More-specific paths come first; `/api` is the
+# catch-all to DataMgmt.
 #
 # Override per cloud:
 #   * AWS ALB Ingress Controller — annotations: kubernetes.io/ingress.class: alb,
@@ -24,57 +26,62 @@ metadata:
 spec:
   # ingressClassName: nginx          # set in overlays per cloud
   rules:
-    - host: rhc-rag.example.com      # override in overlays
+    # ── Admin portal at admin.<host> ──────────────────────────────────────────
+    - host: admin.rhc-rag.example.com
       http:
         paths:
-          # ── RAGMgmt-Service routes (more specific first) ───────────────────
+          # API calls from the admin portal — same path-routing as below.
           - path: /api/patterns
             pathType: Prefix
-            backend:
-              service:
-                name: ragmgmt
-                port:
-                  name: http
+            backend: { service: { name: ragmgmt, port: { name: http } } }
           - path: /api/chunk
             pathType: Prefix
-            backend:
-              service:
-                name: ragmgmt
-                port:
-                  name: http
+            backend: { service: { name: ragmgmt, port: { name: http } } }
           - path: /api/retrieve
             pathType: Prefix
-            backend:
-              service:
-                name: ragmgmt
-                port:
-                  name: http
+            backend: { service: { name: ragmgmt, port: { name: http } } }
           - path: /api/generate
             pathType: Prefix
-            backend:
-              service:
-                name: ragmgmt
-                port:
-                  name: http
+            backend: { service: { name: ragmgmt, port: { name: http } } }
           - path: /api/guardrails
             pathType: Prefix
-            backend:
-              service:
-                name: ragmgmt
-                port:
-                  name: http
+            backend: { service: { name: ragmgmt, port: { name: http } } }
           - path: /api/faithfulness
             pathType: Prefix
-            backend:
-              service:
-                name: ragmgmt
-                port:
-                  name: http
-          # ── DataMgmt-Service catch-all for /api/* ──────────────────────────
+            backend: { service: { name: ragmgmt, port: { name: http } } }
           - path: /api
             pathType: Prefix
-            backend:
-              service:
-                name: datamgmt
-                port:
-                  name: http
+            backend: { service: { name: datamgmt, port: { name: http } } }
+          # SPA shell — last so the API paths above match first.
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: admin-portal, port: { name: http } } }
+
+    # ── Customer portal at app.<host> ─────────────────────────────────────────
+    - host: app.rhc-rag.example.com
+      http:
+        paths:
+          - path: /api/patterns
+            pathType: Prefix
+            backend: { service: { name: ragmgmt, port: { name: http } } }
+          - path: /api/chunk
+            pathType: Prefix
+            backend: { service: { name: ragmgmt, port: { name: http } } }
+          - path: /api/retrieve
+            pathType: Prefix
+            backend: { service: { name: ragmgmt, port: { name: http } } }
+          - path: /api/generate
+            pathType: Prefix
+            backend: { service: { name: ragmgmt, port: { name: http } } }
+          - path: /api/guardrails
+            pathType: Prefix
+            backend: { service: { name: ragmgmt, port: { name: http } } }
+          - path: /api/faithfulness
+            pathType: Prefix
+            backend: { service: { name: ragmgmt, port: { name: http } } }
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: datamgmt, port: { name: http } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: customer-portal, port: { name: http } } }
