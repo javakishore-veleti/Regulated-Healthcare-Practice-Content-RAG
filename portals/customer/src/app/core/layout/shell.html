@@ -1,0 +1,23 @@
+<div class="shell">
+  <mat-toolbar class="top-nav">
+    <div class="brand">
+      <mat-icon class="brand-icon">health_and_safety</mat-icon>
+      <span class="brand-text">Regulated Healthcare RAG</span>
+      <span class="brand-suffix">Customer Portal</span>
+    </div>
+    <nav class="top-nav-links">
+      <a routerLink="/catalog" routerLinkActive="active">
+        <mat-icon>library_books</mat-icon>
+        <span>Catalog</span>
+      </a>
+      <a routerLink="/generate" routerLinkActive="active">
+        <mat-icon>auto_awesome</mat-icon>
+        <span>Generate</span>
+      </a>
+    </nav>
+  </mat-toolbar>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

@@ -1,0 +1,57 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Dataset Catalog</h1>
+      <p class="page-subtitle">
+        Public-data corpora the Regulated Healthcare RAG stack has indexed. When you
+        Generate content, the system grounds every claim against these sources.
+      </p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="error-banner">
+      <mat-icon>error_outline</mat-icon>
+      <span>Failed to load catalog: {{ errorMessage() }}</span>
+    </div>
+  }
+
+  @if (loading() && !datasets().length) {
+    <div class="loading-row">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span>Loading catalog…</span>
+    </div>
+  }
+
+  <div class="card-grid">
+    @for (card of cards(); track card.dataset.dataset_name) {
+      <mat-card class="dataset-card">
+        <mat-card-header>
+          <mat-card-title>{{ card.dataset.dataset_name }}</mat-card-title>
+          <mat-card-subtitle>
+            <code>{{ card.dataset.dataset_type }}</code>
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="status-row">
+            <span [class]="readinessClass(card)">{{ readinessLabel(card) }}</span>
+            <span class="muted">{{ card.totalRuns }} ingest run{{ card.totalRuns === 1 ? '' : 's' }}</span>
+          </div>
+          @if (card.latestSuccess) {
+            <div class="meta-row">
+              <mat-icon class="meta-icon">schedule</mat-icon>
+              <span>Last successful ingest:</span>
+              <strong>{{ card.latestSuccess.ingest_start_dt }}</strong>
+            </div>
+            <div class="meta-row">
+              <mat-icon class="meta-icon">cloud</mat-icon>
+              <span>Endpoint:</span>
+              <code>{{ card.latestSuccess.endpoint_name }}</code>
+              <span class="muted">({{ card.latestSuccess.location_type }})</span>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+</div>
