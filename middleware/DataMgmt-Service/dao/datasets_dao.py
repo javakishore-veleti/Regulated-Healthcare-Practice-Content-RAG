@@ -2,14 +2,23 @@ from typing import Protocol
 
 from psycopg_pool import AsyncConnectionPool
 
-from common.dtos import ListDataSetsReqDTO, ListDataSetsRespDTO
-from common.return_codes import RC_OK
+from common.dtos import (
+    IngestDataSetReqDTO,
+    IngestDataSetRespDTO,
+    ListDataSetsReqDTO,
+    ListDataSetsRespDTO,
+)
+from common.return_codes import RC_NOT_FOUND, RC_OK
 from common.tracing import traced
 
 
 class IDataSetsDao(Protocol):
     async def fetch_all(
         self, req: ListDataSetsReqDTO, resp: ListDataSetsRespDTO
+    ) -> int: ...
+
+    async def fetch_by_name_for_ingest(
+        self, req: IngestDataSetReqDTO, resp: IngestDataSetRespDTO
     ) -> int: ...
 
 
@@ -42,4 +51,28 @@ class PostgresDataSetsDao:
             }
             for r in rows
         ]
+        return RC_OK
+
+    @traced("datasets.dao.fetch_by_name_for_ingest")
+    async def fetch_by_name_for_ingest(
+        self, req: IngestDataSetReqDTO, resp: IngestDataSetRespDTO
+    ) -> int:
+        async with self._pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id, dataset_type
+                    FROM system_datasets
+                    WHERE dataset_name = %s
+                    """,
+                    (req.dataset_name,),
+                )
+                row = await cur.fetchone()
+
+        if row is None:
+            resp.respCtxData["error"] = f"dataset not found: {req.dataset_name}"
+            return RC_NOT_FOUND
+
+        resp.respCtxData["dataset_id"] = row[0]
+        resp.respCtxData["dataset_type"] = row[1]
         return RC_OK

@@ -23,3 +23,22 @@ class ListDataSetsReqDTO(_BaseDTO):
 
 class ListDataSetsRespDTO(_BaseDTO):
     respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class IngestDataSetReqDTO(_BaseDTO):
+    """Request DTO for the ingest workflow. Carries the dataset slug and the endpoint
+    name that selects where data lands. force_refresh bypasses the cache short-circuit
+    (anticipated; not implemented yet)."""
+
+    dataset_name: str
+    endpoint_name: str
+    force_refresh: bool = False
+
+
+class IngestDataSetRespDTO(_BaseDTO):
+    """Response DTO for the ingest workflow. State accumulates in respCtxData across the
+    DAO/service/handler chain (dataset_id, endpoint_id, location_type, location_config,
+    cache_populated, latest_success_id, ingest_id, ingest_status, destination_path,
+    ingest_start_dt, ingest_end_dt, message)."""
+
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
