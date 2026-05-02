@@ -81,3 +81,27 @@ class CheckGuardrailsRespDTO(_BaseDTO):
     violations were detected at any severity."""
 
     respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class CitationSnippet(_BaseDTO):
+    """Minimal citation shape the faithfulness scorer needs."""
+
+    snippet: str
+    parent_id: str | None = None
+    child_id: str | None = None
+
+
+class CheckFaithfulnessReqDTO(_BaseDTO):
+    """Request DTO for the Self-RAG faithfulness scorer. `citations` are the
+    grounded passages the draft is checked against."""
+
+    text: str = Field(..., min_length=1)
+    citations: list[CitationSnippet] = Field(default_factory=list)
+    per_sentence_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
+    overall_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+
+
+class CheckFaithfulnessRespDTO(_BaseDTO):
+    """Returns score + per-sentence breakdown + pass/fail vs the overall threshold."""
+
+    respCtxData: dict[str, Any] = Field(default_factory=dict)

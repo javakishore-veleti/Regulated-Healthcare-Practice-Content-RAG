@@ -1,8 +1,11 @@
 from typing import Protocol
 
 from common.dtos import (
+    CheckFaithfulnessReqDTO,
+    CheckFaithfulnessRespDTO,
     CheckGuardrailsReqDTO,
     CheckGuardrailsRespDTO,
+    CitationSnippet,
     GenerateGroundedDraftReqDTO,
     GenerateGroundedDraftRespDTO,
     HybridRetrieveReqDTO,
@@ -10,6 +13,7 @@ from common.dtos import (
 )
 from common.return_codes import RC_OK
 from common.tracing import traced
+from service.faithfulness_service import IFaithfulnessService
 from service.guardrails.guardrails_service import IGuardrailsService
 from service.retrieval_service import IRetrievalService
 
@@ -38,9 +42,11 @@ class GenerationService:
         self,
         retrieval_service: IRetrievalService,
         guardrails_service: IGuardrailsService | None = None,
+        faithfulness_service: IFaithfulnessService | None = None,
     ) -> None:
         self._retrieval = retrieval_service
         self._guardrails = guardrails_service
+        self._faithfulness = faithfulness_service
 
     @traced("generation.grounded_draft")
     async def generate_grounded_draft(
@@ -80,10 +86,47 @@ class GenerationService:
             "legs": retrieve_resp.respCtxData.get("legs", {}),
             "fusion": retrieve_resp.respCtxData.get("fusion", {}),
         }
-        ctx["faithfulness"] = {
-            "status": "skipped",
-            "reason": "Self-RAG faithfulness loop not yet wired (separate slice).",
-        }
+        if self._faithfulness is not None:
+            citation_models = [
+                CitationSnippet(
+                    snippet=c["snippet"],
+                    parent_id=c.get("parent_id"),
+                    child_id=c.get("child_id"),
+                )
+                for c in ctx["citations"]
+            ]
+            f_req = CheckFaithfulnessReqDTO(
+                text=ctx["draft_markdown"], citations=citation_models
+            )
+            f_resp = CheckFaithfulnessRespDTO()
+            f_rc = await self._faithfulness.check_text(f_req, f_resp)
+            if f_rc == RC_OK:
+                f = f_resp.respCtxData
+                ctx["faithfulness"] = {
+                    "status": "ok",
+                    "scorer": f.get("scorer"),
+                    "score": f.get("score"),
+                    "passed": f.get("passed"),
+                    "overall_threshold": f.get("overall_threshold"),
+                    "per_sentence_threshold": f.get("per_sentence_threshold"),
+                    "sentence_count": f.get("sentence_count"),
+                    "supported_count": f.get("supported_count"),
+                    "evidence_free_count": f.get("evidence_free_count"),
+                    "regenerate_recommended": f.get("regenerate_recommended"),
+                    # Trim per-sentence detail to keep the response light; full
+                    # detail is available via /faithfulness/check.
+                    "per_sentence_preview": (f.get("per_sentence") or [])[:6],
+                }
+            else:
+                ctx["faithfulness"] = {
+                    "status": "error",
+                    "reason": f"faithfulness check returned rc={f_rc}",
+                }
+        else:
+            ctx["faithfulness"] = {
+                "status": "skipped",
+                "reason": "Faithfulness service not configured for this deployment.",
+            }
 
         if self._guardrails is not None:
             gr_req = CheckGuardrailsReqDTO(text=ctx["draft_markdown"])
