@@ -3,13 +3,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-from api import chunking_router, patterns_router
-from common.db import build_pool
+from api import chunking_router, patterns_router, retrieval_router
+from common.db import build_pool, build_vectors_pool
 from common.otel import init_otel
 from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
+from dao.retrieval_dao import PostgresRetrievalDao
 from service.chunking_service import ChunkingService
 from service.patterns_service import RagPatternsService
+from service.retrieval_service import RetrievalService
 
 
 @asynccontextmanager
@@ -18,16 +20,22 @@ async def lifespan(app: FastAPI):
     init_otel(settings)
 
     pool = await build_pool(settings)
+    vectors_pool = await build_vectors_pool(settings)
     app.state.pool = pool
+    app.state.vectors_pool = vectors_pool
 
     patterns_dao = PostgresRagPatternsDao(pool)
+    retrieval_dao = PostgresRetrievalDao(vectors_pool)
+
     app.state.patterns_service = RagPatternsService(patterns_dao)
     app.state.chunking_service = ChunkingService()
+    app.state.retrieval_service = RetrievalService(retrieval_dao)
 
     try:
         yield
     finally:
         await pool.close()
+        await vectors_pool.close()
 
 
 app = FastAPI(
@@ -45,6 +53,7 @@ FastAPIInstrumentor.instrument_app(app)
 
 app.include_router(patterns_router.router)
 app.include_router(chunking_router.router)
+app.include_router(retrieval_router.router)
 
 
 @app.get("/health", tags=["health"], summary="Liveness probe")

@@ -31,3 +31,20 @@ class ChunkTextRespDTO(_BaseDTO):
     them without duplicating parent text per child."""
 
     respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class HybridRetrieveReqDTO(_BaseDTO):
+    """Request DTO for hybrid retrieval (BM25 + dense + RRF fusion)."""
+
+    query: str = Field(..., min_length=1)
+    dataset_name: str | None = None
+    top_k: int = Field(default=5, ge=1, le=50)
+    top_k_per_leg: int = Field(default=50, ge=5, le=500)
+    rrf_k: int = Field(default=60, ge=1, le=1000)
+
+
+class HybridRetrieveRespDTO(_BaseDTO):
+    """Returns ranked hits in respCtxData.hits with diagnostic metadata for both
+    retrieval legs and the fused output."""
+
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
