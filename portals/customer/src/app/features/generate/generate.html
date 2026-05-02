@@ -4,8 +4,9 @@
       <h1>Generate Content</h1>
       <p class="page-subtitle">
         Compliance-grounded content for allied-health practices in regulated jurisdictions.
-        Every claim in the draft maps to a citation row in the indexed corpus —
-        no fabrication, no banned phrases (guardrail layer lands in a follow-up slice).
+        Each draft is grounded in three corpora — <strong>regulator rules</strong>,
+        <strong>clinical evidence</strong>, and the practice's <strong>voice corpus</strong> —
+        with banned-phrase + faithfulness checks before it reaches you.
       </p>
     </div>
   </header>
@@ -34,14 +35,14 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="topk-field">
-          <mat-label>Top K</mat-label>
+          <mat-label>Top K per corpus</mat-label>
           <input
             matInput
             type="number"
             min="1"
             max="10"
-            [value]="topK()"
-            (input)="setTopK(+$any($event.target).value)"
+            [value]="topKPerCorpus()"
+            (input)="setTopKPerCorpus(+$any($event.target).value)"
           />
         </mat-form-field>
 
@@ -134,6 +135,39 @@
       </mat-card>
 
       <div class="side-stack">
+        @if (corporaCoverage().length > 0) {
+          <mat-card class="corpora-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon class="title-icon" [class.shield-ok]="!anyCorpusMissing()">
+                  {{ anyCorpusMissing() ? 'warning_amber' : 'verified_user' }}
+                </mat-icon>
+                Three-corpora coverage
+              </mat-card-title>
+              <mat-card-subtitle>
+                @if (anyCorpusMissing()) {
+                  one or more corpora returned zero grounding for this topic — draft may be incomplete
+                } @else {
+                  all three README corpora contributed grounding
+                }
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="corpora-grid">
+                @for (c of corporaCoverage(); track c.type) {
+                  <div [class]="'corpus-coverage ' + corpusChipClass(c.type)" [class.empty]="!c.present">
+                    <mat-icon class="corpus-icon">{{ c.present ? 'check_circle' : 'remove_circle_outline' }}</mat-icon>
+                    <div class="corpus-text">
+                      <div class="corpus-label">{{ c.label }}</div>
+                      <div class="corpus-count">{{ c.hitCount }} hit{{ c.hitCount === 1 ? '' : 's' }}</div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
+
         <mat-card class="citations-card">
           <mat-card-header>
             <mat-card-title>Citations</mat-card-title>
@@ -148,14 +182,23 @@
                 <li class="citation-item">
                   <div class="citation-head">
                     <span class="citation-marker">{{ c.marker }}</span>
+                    @if (c.corpus_type) {
+                      <span [class]="corpusChipClass(c.corpus_type)" [title]="'corpus: ' + c.corpus_type">
+                        {{ corpusLabel(c.corpus_type) }}
+                      </span>
+                    }
                     <span class="citation-source">
                       <code>{{ c.dataset_name }}</code>
                       · page {{ c.page_index }}
                       · {{ c.parent_id }}
                     </span>
-                    @if (c.rrf_score !== null) {
+                    @if (c.rerank_score !== null) {
+                      <span class="citation-score" title="rerank score (token-overlap blended with RRF)">
+                        rerank {{ c.rerank_score!.toFixed(3) }}
+                      </span>
+                    } @else if (c.rrf_score !== null) {
                       <span class="citation-score" title="RRF fused score">
-                        {{ c.rrf_score!.toFixed(4) }}
+                        rrf {{ c.rrf_score!.toFixed(4) }}
                       </span>
                     }
                   </div>

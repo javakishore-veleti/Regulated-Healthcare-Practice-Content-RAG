@@ -4,22 +4,33 @@ import { Observable } from 'rxjs';
 
 import { ApiResp } from './api.types';
 
+export type RetrievalMode = 'three_corpora' | 'single_corpus';
+export type CorpusType = 'regulator' | 'clinical_evidence' | 'practice_voice';
+
 export interface GenerateDraftRequest {
   topic: string;
+  retrieval_mode?: RetrievalMode;
+  // single_corpus knobs (used only when retrieval_mode === 'single_corpus'):
   dataset_name?: string | null;
   top_k?: number;
+  // three_corpora knob (used only when retrieval_mode === 'three_corpora'):
+  top_k_per_corpus?: number;
   voice_profile?: string | null;
 }
 
 export interface DraftCitation {
   marker: string;
   dataset_name: string | null;
+  // corpus_type is populated when retrieval_mode === 'three_corpora'; null in
+  // single_corpus mode (the legacy path).
+  corpus_type: CorpusType | null;
   page_index: number | null;
   parent_id: string | null;
   child_id: string | null;
   char_offset_in_parent: number | null;
   snippet: string;
   rrf_score: number | null;
+  rerank_score: number | null;
 }
 
 export type GuardrailSeverity = 'critical' | 'high' | 'medium' | 'low';
@@ -69,16 +80,32 @@ export interface FaithfulnessStatus {
   reason?: string;
 }
 
+export interface RetrievalMeta {
+  // Always populated (both modes):
+  mode: RetrievalMode;
+  reranker?: string | null;
+  embedder?: string | null;
+  total_hits?: number;
+
+  // Three-corpora mode adds these:
+  corpora_present?: CorpusType[];
+  corpora_missing?: CorpusType[];
+  per_corpus_hit_counts?: Partial<Record<CorpusType, number>>;
+
+  // Single-corpus mode adds these:
+  dataset_name?: string | null;
+  legs?: { lexical: { hit_count: number }; dense: { hit_count: number } };
+  fusion?: { method: string; rrf_k: number; fused_candidate_count: number; returned: number };
+}
+
 export interface GenerateDraftResponse {
   topic: string;
   voice_profile: string;
   generator: string;
+  retrieval_mode: RetrievalMode;
   draft_markdown: string;
   citations: DraftCitation[];
-  retrieval_meta: {
-    legs: { lexical: { hit_count: number }; dense: { hit_count: number } };
-    fusion: { method: string; rrf_k: number; fused_candidate_count: number; returned: number };
-  };
+  retrieval_meta: RetrievalMeta;
   faithfulness: FaithfulnessStatus;
   guardrails: GuardrailStatus;
 }
