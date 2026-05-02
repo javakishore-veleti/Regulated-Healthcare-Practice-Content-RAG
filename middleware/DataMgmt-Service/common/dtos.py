@@ -57,6 +57,74 @@ class ListIngestRunsRespDTO(_BaseDTO):
     respCtxData: dict[str, Any] = Field(default_factory=dict)
 
 
+class ListSourceUrlsReqDTO(_BaseDTO):
+    """Filter source URLs for a single dataset by slug."""
+
+    dataset_name: str
+    only_active: bool = False
+
+
+class ListSourceUrlsRespDTO(_BaseDTO):
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class AddSourceUrlBodyDTO(_BaseDTO):
+    """HTTP body shape for `POST /datasets/{dataset_name}/source-urls`. The
+    `dataset_name` arrives via the path, so the body itself doesn't carry it."""
+
+    url: str = Field(..., min_length=1)
+    label: str | None = None
+    is_active: bool = True
+    position: int = 100
+    notes: str | None = None
+
+
+class AddSourceUrlReqDTO(_BaseDTO):
+    """Internal DTO used by the service/dao layer once path + body are merged."""
+
+    dataset_name: str
+    url: str = Field(..., min_length=1)
+    label: str | None = None
+    is_active: bool = True
+    position: int = 100
+    notes: str | None = None
+
+
+class AddSourceUrlRespDTO(_BaseDTO):
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class UpdateSourceUrlBodyDTO(_BaseDTO):
+    """HTTP body shape for `PATCH /source-urls/{id}` — id arrives via path."""
+
+    is_active: bool | None = None
+    position: int | None = None
+    label: str | None = None
+    notes: str | None = None
+
+
+class UpdateSourceUrlReqDTO(_BaseDTO):
+    """Internal DTO used by the service/dao layer once path + body are merged."""
+
+    id: int
+    is_active: bool | None = None
+    position: int | None = None
+    label: str | None = None
+    notes: str | None = None
+
+
+class UpdateSourceUrlRespDTO(_BaseDTO):
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class DeleteSourceUrlReqDTO(_BaseDTO):
+    id: int
+
+
+class DeleteSourceUrlRespDTO(_BaseDTO):
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
 class GetAppConfigReqDTO(_BaseDTO):
     """No filters; returns the runtime config the admin portal needs at bootstrap."""
 
