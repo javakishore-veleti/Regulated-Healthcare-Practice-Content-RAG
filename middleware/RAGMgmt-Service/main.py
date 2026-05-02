@@ -3,11 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-from api import patterns_router
+from api import chunking_router, patterns_router
 from common.db import build_pool
 from common.otel import init_otel
 from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
+from service.chunking_service import ChunkingService
 from service.patterns_service import RagPatternsService
 
 
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI):
 
     patterns_dao = PostgresRagPatternsDao(pool)
     app.state.patterns_service = RagPatternsService(patterns_dao)
+    app.state.chunking_service = ChunkingService()
 
     try:
         yield
@@ -42,6 +44,7 @@ app = FastAPI(
 FastAPIInstrumentor.instrument_app(app)
 
 app.include_router(patterns_router.router)
+app.include_router(chunking_router.router)
 
 
 @app.get("/health", tags=["health"], summary="Liveness probe")
