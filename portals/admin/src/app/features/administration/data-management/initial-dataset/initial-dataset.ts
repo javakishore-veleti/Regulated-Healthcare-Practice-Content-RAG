@@ -18,6 +18,7 @@ import {
   EndpointRow,
   IngestRunRow,
 } from '../../../../core/api/api.types';
+import { environment } from '../../../../../environments/environment';
 
 interface DatasetUiState {
   selectedEndpointName: string | null;
@@ -71,16 +72,15 @@ export class InitialDatasetComponent implements OnInit {
     'workflow',
   ];
 
-  // TODO: drive from env / settings endpoint once we have one. Local-dev assumption.
-  readonly airflowUiBase = 'http://localhost:8080';
+  readonly airflowUiBase = environment.airflowUiBase;
 
   airflowRunUrl(row: IngestRunRow): string | null {
-    if (!row.workflow_dag_id || !row.workflow_run_id) {
+    if (!row.workflow_dag_id || !row.workflow_run_id || !this.airflowUiBase) {
       return null;
     }
     const dagId = encodeURIComponent(row.workflow_dag_id);
     const runId = encodeURIComponent(row.workflow_run_id);
-    return `${this.airflowUiBase}/dags/${dagId}/grid?dag_run_id=${runId}`;
+    return `${this.airflowUiBase.replace(/\/$/, '')}/dags/${dagId}/grid?dag_run_id=${runId}`;
   }
 
   ngOnInit(): void {
