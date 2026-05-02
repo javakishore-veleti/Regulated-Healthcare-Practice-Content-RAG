@@ -16,7 +16,10 @@
     "stack:down": "bash DevOps/Local/docker-all-down.sh",
     "stack:status": "bash DevOps/Local/docker-all-status.sh",
     "admin:dev": "cd portals/admin && npm start",
-    "customer:dev": "cd portals/customer && ng serve --port 4300"
+    "customer:dev": "cd portals/customer && ng serve --port 4300",
+    "test:py": "python3 -m unittest discover -s middleware/RAGMgmt-Service/tests -v && python3 -m unittest discover -s middleware/Regulated-Healthcare-DAGS/tests -v",
+    "test:py:ragmgmt": "python3 -m unittest discover -s middleware/RAGMgmt-Service/tests -v",
+    "test:py:dags": "python3 -m unittest discover -s middleware/Regulated-Healthcare-DAGS/tests -v"
   },
   "engines": {
     "node": ">=20"

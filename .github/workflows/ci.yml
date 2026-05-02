@@ -57,6 +57,12 @@ jobs:
           print('secrets.py literal pass-through OK')
           "
 
+      - name: Unit tests — RAGMgmt core (corpus types, embedding, chunking, RRF, reranker)
+        run: python -m unittest discover -s middleware/RAGMgmt-Service/tests -v
+
+      - name: Unit tests — DAG handlers (HTML extraction)
+        run: python -m unittest discover -s middleware/Regulated-Healthcare-DAGS/tests -v
+
   angular-portals:
     name: Angular — admin + customer
     runs-on: ubuntu-latest
