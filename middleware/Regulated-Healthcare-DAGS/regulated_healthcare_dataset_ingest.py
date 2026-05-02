@@ -10,14 +10,22 @@ Receives `dag_run.conf` shaped like::
             "base_path_under_home": "runtime_data/RAG_Projects/Regulated-Healthcare-RAG/DataSets",
             "latest_ingest_dirname": "Latest_Ingest"
         },
-        "force_refresh":  false
+        "dataset_type":  "regulator_guidelines",  # drives fetcher dispatch
+        "force_refresh": false
     }
 
-Per the project's endpoint abstraction, the DAG dispatches by `location_type` for
-destination handling and by `dataset_type` for fetcher logic. Only `localhost` is
-implemented as a destination. Per-dataset-type handlers live in `handlers/` (excluded
-from Airflow's DAG scan via `.airflowignore`); add a new handler module + a branch
-case in `dispatch_by_dataset_type` to extend.
+The DAG dispatches by `location_type` for destination handling and by
+`dataset_type` for fetcher logic. Each dataset_type maps to a handler module
+under `handlers/` (excluded from Airflow's DAG scan via `.airflowignore`); the
+single `fetch_for_dataset_type` task picks the right one at runtime so the
+downstream `chunk_via_ragmgmt` / `embed_via_pgvector` tasks always run on the
+fetched output regardless of which fetcher produced it.
+
+To add a new dataset_type:
+  1. Add a handler under `handlers/<name>_fetch.py`.
+  2. Register `(dataset_type, handler_filename, callable_name)` in
+     `_FETCHER_REGISTRY` below.
+  3. (Optional) Seed source URLs via a DataMgmt-Service migration.
 """
 
 from __future__ import annotations
@@ -37,12 +45,19 @@ if _DAGS_DIR not in sys.path:
     sys.path.insert(0, _DAGS_DIR)
 
 DAG_ID = "regulated_healthcare_dataset_ingest"
-
-DATASET_TYPE_REGULATOR_GUIDELINES = "regulator_guidelines"
-TASK_FETCH_REGULATOR_GUIDELINES = "fetch_regulator_guidelines"
+TASK_FETCH = "fetch_for_dataset_type"
 TASK_CHUNK_VIA_RAGMGMT = "chunk_via_ragmgmt"
 TASK_EMBED_VIA_PGVECTOR = "embed_via_pgvector"
-TASK_WRITE_STUB_MANIFEST = "write_stub_manifest"
+
+# Per Project A's `1_Project_A_Healthcare_Content` worksheet: five datasets, each
+# with its own fetcher module. Add entries here to extend.
+_FETCHER_REGISTRY: dict[str, tuple[str, str]] = {
+    "regulator_guidelines":   ("ahpra_advertising_rules_fetch.py", "fetch_ahpra_advertising_rules"),
+    "pubmed":                 ("ncbi_pubmed_fetch.py",            "fetch_ncbi_pubmed"),
+    "pmc":                    ("pmc_open_access_fetch.py",        "fetch_pmc_open_access"),
+    "medical_transcriptions": ("kaggle_medical_transcriptions_fetch.py", "fetch_kaggle_medical_transcriptions"),
+    "common_crawl":           ("common_crawl_fetch.py",           "fetch_common_crawl"),
+}
 
 
 def _load_handler_module(filename: str):
@@ -108,7 +123,7 @@ def regulated_healthcare_dataset_ingest():
 
         return {
             "dataset_name": conf["dataset_name"],
-            "dataset_type": conf.get("dataset_type"),  # pulled from FastAPI side
+            "dataset_type": conf.get("dataset_type"),
             "endpoint_name": conf["endpoint_name"],
             "location_type": conf["location_type"],
             "force_refresh": bool(conf.get("force_refresh", False)),
@@ -116,16 +131,19 @@ def regulated_healthcare_dataset_ingest():
             "urls": conf.get("urls"),  # optional override for url-list fetchers
         }
 
-    @task.branch
-    def dispatch_by_dataset_type(resolved: dict) -> str:
-        if resolved.get("dataset_type") == DATASET_TYPE_REGULATOR_GUIDELINES:
-            return TASK_FETCH_REGULATOR_GUIDELINES
-        return TASK_WRITE_STUB_MANIFEST
-
-    @task(task_id=TASK_FETCH_REGULATOR_GUIDELINES)
-    def fetch_regulator_guidelines(resolved: dict) -> dict:
-        module = _load_handler_module("ahpra_advertising_rules_fetch.py")
-        return module.fetch_ahpra_advertising_rules(resolved)
+    @task(task_id=TASK_FETCH)
+    def fetch_for_dataset_type(resolved: dict) -> dict:
+        """Dispatch to the dataset_type-specific fetcher. Falls back to a stub
+        manifest writer if the dataset_type isn't registered (so downstream
+        chunk/embed tasks still see a valid manifest)."""
+        dataset_type = resolved.get("dataset_type")
+        entry = _FETCHER_REGISTRY.get(dataset_type) if dataset_type else None
+        if entry is None:
+            return _write_stub_manifest(resolved)
+        filename, callable_name = entry
+        module = _load_handler_module(filename)
+        fn = getattr(module, callable_name)
+        return fn(resolved)
 
     @task(task_id=TASK_CHUNK_VIA_RAGMGMT)
     def chunk_via_ragmgmt(resolved: dict, fetch_result: dict) -> dict:
@@ -143,37 +161,33 @@ def regulated_healthcare_dataset_ingest():
         module = _load_handler_module("embed_via_pgvector.py")
         return module.embed_chunked_pages(resolved)
 
-    @task(task_id=TASK_WRITE_STUB_MANIFEST)
-    def write_stub_manifest(resolved: dict) -> dict:
-        target = Path(resolved["destination_path"])
-        target.mkdir(parents=True, exist_ok=True)
-
-        manifest = {
-            "dag_id": DAG_ID,
-            "handler": "stub",
-            "dataset_name": resolved["dataset_name"],
-            "endpoint_name": resolved["endpoint_name"],
-            "location_type": resolved["location_type"],
-            "force_refresh": resolved["force_refresh"],
-            "ingested_at_utc": datetime.now(timezone.utc).isoformat(),
-            "marker": (
-                "stub manifest — no per-dataset-type fetcher implemented yet for this "
-                "dataset_type; replaces slice by slice"
-            ),
-        }
-        manifest_path = target / "INGEST_MANIFEST.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
-        return {"manifest_path": str(manifest_path)}
-
     resolved = resolve_destination()
-    branch = dispatch_by_dataset_type(resolved)
-    fetch_branch = fetch_regulator_guidelines(resolved)
-    stub_branch = write_stub_manifest(resolved)
-    chunk_branch = chunk_via_ragmgmt(resolved, fetch_branch)
-    embed_branch = embed_via_pgvector(resolved, chunk_branch)
+    fetch_result = fetch_for_dataset_type(resolved)
+    chunk_result = chunk_via_ragmgmt(resolved, fetch_result)
+    embed_via_pgvector(resolved, chunk_result)
 
-    branch >> [fetch_branch, stub_branch]
-    fetch_branch >> chunk_branch >> embed_branch
+
+def _write_stub_manifest(resolved: dict) -> dict:
+    target = Path(resolved["destination_path"])
+    target.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "dag_id": DAG_ID,
+        "handler": "stub",
+        "dataset_name": resolved["dataset_name"],
+        "dataset_type": resolved.get("dataset_type"),
+        "endpoint_name": resolved["endpoint_name"],
+        "location_type": resolved["location_type"],
+        "force_refresh": resolved["force_refresh"],
+        "ingested_at_utc": datetime.now(timezone.utc).isoformat(),
+        "marker": (
+            f"stub manifest — no fetcher registered for dataset_type="
+            f"{resolved.get('dataset_type')!r}; register one in _FETCHER_REGISTRY"
+        ),
+    }
+    manifest_path = target / "INGEST_MANIFEST.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    return {"manifest_path": str(manifest_path), "fetched_count": 0}
 
 
 regulated_healthcare_dataset_ingest()
