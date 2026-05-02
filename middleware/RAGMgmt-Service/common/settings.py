@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8002
 
+    # LLM drafter selection. `auto` picks AnthropicDrafter when anthropic_api_key is
+    # set, falls back to StubDrafter otherwise. Force a specific drafter with
+    # `stub` or `anthropic`. The Excel architecture calls for Bedrock Claude Opus
+    # 4.7 for drafting; using the direct Anthropic API here for local dev.
+    llm_drafter: str = "auto"
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-opus-4-7"
+    anthropic_max_tokens: int = 1500
+
     @property
     def db_conninfo(self) -> str:
         return self._conninfo(self.db_name)
