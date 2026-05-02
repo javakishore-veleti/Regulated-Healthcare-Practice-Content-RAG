@@ -18,11 +18,15 @@ for svc in "${services[@]}"; do
   compose="$DIR/$svc/docker-compose.yml"
   if [[ -f "$compose" ]]; then
     echo "==> Bringing up $svc"
-    docker compose -f "$compose" up -d
+    docker compose -f "$compose" up -d --wait
   else
     echo "==> Skipping $svc (no docker-compose.yml yet)"
   fi
 done
+
+echo
+echo "==> Running database migrations"
+"$DIR/Postgres/run-migrations.sh"
 
 echo
 echo "Stack is up. Run docker-all-status.sh to verify."
