@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ragmgmt-config
+  namespace: rhc-rag
+  labels:
+    app.kubernetes.io/name: ragmgmt-service
+    app.kubernetes.io/part-of: regulated-healthcare-rag
+data:
+  API_HOST: "0.0.0.0"
+  API_PORT: "8002"
+  DB_HOST: "postgres.rhc-rag.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_USER: "rhc_admin"
+  DB_NAME: "rag_app"
+  RAG_VECTORS_DB_NAME: "rag_vectors"
+  # LLM drafter selection: `auto` uses Anthropic when the API key is set,
+  # otherwise falls back to the deterministic stub composer.
+  LLM_DRAFTER: "auto"
+  ANTHROPIC_MODEL: "claude-opus-4-7"
+  ANTHROPIC_MAX_TOKENS: "1500"
+  MAX_REGENERATE_ATTEMPTS: "1"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  OTEL_SERVICE_NAME: "ragmgmt-service"

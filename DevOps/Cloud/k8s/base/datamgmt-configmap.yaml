@@ -1,0 +1,28 @@
+# Non-secret config for DataMgmt-Service. Secrets (DB_PASSWORD, AIRFLOW_PASSWORD)
+# live in Secret resources / cloud secret-manager refs and are projected via
+# secretKeyRef in the Deployment.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datamgmt-config
+  namespace: rhc-rag
+  labels:
+    app.kubernetes.io/name: datamgmt-service
+    app.kubernetes.io/part-of: regulated-healthcare-rag
+data:
+  API_HOST: "0.0.0.0"
+  API_PORT: "8001"
+  # Postgres host / db / port / user. Production: managed Postgres (RDS / CloudSQL /
+  # Azure DB) — override via overlay. Local: in-cluster Postgres or rds-proxy.
+  DB_HOST: "postgres.rhc-rag.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_USER: "rhc_admin"
+  DB_NAME: "rag_app"
+  # Airflow REST endpoint the /ingest flow triggers via.
+  AIRFLOW_BASE_URL: "http://airflow.rhc-rag.svc.cluster.local:8080"
+  AIRFLOW_USERNAME: "admin"
+  # Browser-facing Airflow UI URL surfaced via /api/config to the SPAs.
+  AIRFLOW_UI_BASE: "https://airflow.example.com"
+  # OpenTelemetry OTLP HTTP target. Empty / unset → ConsoleSpanExporter.
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  OTEL_SERVICE_NAME: "datamgmt-service"

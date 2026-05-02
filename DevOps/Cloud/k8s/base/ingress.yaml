@@ -1,0 +1,80 @@
+# Generic, cloud-agnostic Ingress. Path-based routing matches the SPAs'
+# proxy.conf.json so the same `/api/...` URLs work in dev (proxy) and prod
+# (ingress). More-specific paths come first; `/api` is the catch-all to
+# DataMgmt.
+#
+# Override per cloud:
+#   * AWS ALB Ingress Controller — annotations: kubernetes.io/ingress.class: alb,
+#     alb.ingress.kubernetes.io/scheme, target-type, certificate-arn
+#   * Azure AGIC — appgw.ingress.kubernetes.io/* annotations
+#   * GCP GCE Ingress — kubernetes.io/ingress.class: gce + BackendConfig
+#
+# See DevOps/Cloud/k8s/README.md for the recipe per cloud.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rhc-rag
+  namespace: rhc-rag
+  labels:
+    app.kubernetes.io/part-of: regulated-healthcare-rag
+  annotations:
+    # Placeholder — overlays set the right ingress class for each cloud.
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  # ingressClassName: nginx          # set in overlays per cloud
+  rules:
+    - host: rhc-rag.example.com      # override in overlays
+      http:
+        paths:
+          # ── RAGMgmt-Service routes (more specific first) ───────────────────
+          - path: /api/patterns
+            pathType: Prefix
+            backend:
+              service:
+                name: ragmgmt
+                port:
+                  name: http
+          - path: /api/chunk
+            pathType: Prefix
+            backend:
+              service:
+                name: ragmgmt
+                port:
+                  name: http
+          - path: /api/retrieve
+            pathType: Prefix
+            backend:
+              service:
+                name: ragmgmt
+                port:
+                  name: http
+          - path: /api/generate
+            pathType: Prefix
+            backend:
+              service:
+                name: ragmgmt
+                port:
+                  name: http
+          - path: /api/guardrails
+            pathType: Prefix
+            backend:
+              service:
+                name: ragmgmt
+                port:
+                  name: http
+          - path: /api/faithfulness
+            pathType: Prefix
+            backend:
+              service:
+                name: ragmgmt
+                port:
+                  name: http
+          # ── DataMgmt-Service catch-all for /api/* ──────────────────────────
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: datamgmt
+                port:
+                  name: http

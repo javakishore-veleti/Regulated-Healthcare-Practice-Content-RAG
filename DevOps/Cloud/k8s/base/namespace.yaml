@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhc-rag
+  labels:
+    app.kubernetes.io/part-of: regulated-healthcare-rag
+    app.kubernetes.io/managed-by: kustomize
