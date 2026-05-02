@@ -12,6 +12,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   DraftCitation,
   GenerateDraftResponse,
+  GuardrailStatus,
+  GuardrailViolation,
   RagmgmtApiService,
 } from '../../core/api/ragmgmt-api.service';
 
@@ -54,6 +56,41 @@ export class GenerateComponent {
   });
 
   readonly citations = computed<DraftCitation[]>(() => this.draft()?.citations ?? []);
+
+  readonly guardrails = computed<GuardrailStatus | null>(
+    () => this.draft()?.guardrails ?? null
+  );
+
+  readonly guardrailViolations = computed<GuardrailViolation[]>(
+    () => this.guardrails()?.violations ?? []
+  );
+
+  guardrailHeadlineClass(): string {
+    const g = this.guardrails();
+    if (!g) return 'pill pill-pending';
+    if (g.status === 'skipped') return 'pill pill-pending';
+    if (g.status === 'error') return 'pill pill-failure';
+    if (g.passed) return 'pill pill-success';
+    const sev = g.max_severity;
+    if (sev === 'critical' || sev === 'high') return 'pill pill-failure';
+    if (sev === 'medium') return 'pill pill-skipped';
+    return 'pill pill-pending';
+  }
+
+  guardrailHeadlineLabel(): string {
+    const g = this.guardrails();
+    if (!g) return 'no draft yet';
+    if (g.status === 'skipped') return 'guardrails skipped';
+    if (g.status === 'error') return 'guardrails error';
+    if (g.passed) return `passed · ${g.rule_count ?? 0} rules checked`;
+    return `${g.violation_count ?? 0} violations · max ${g.max_severity}`;
+  }
+
+  severityClass(sev: string): string {
+    if (sev === 'critical' || sev === 'high') return 'sev sev-critical';
+    if (sev === 'medium') return 'sev sev-medium';
+    return 'sev sev-low';
+  }
 
   setTopic(v: string): void {
     this.topic.set(v);

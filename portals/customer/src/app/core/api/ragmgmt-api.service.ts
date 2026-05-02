@@ -22,6 +22,30 @@ export interface DraftCitation {
   rrf_score: number | null;
 }
 
+export type GuardrailSeverity = 'critical' | 'high' | 'medium' | 'low';
+
+export interface GuardrailViolation {
+  rule_id: string;
+  category: string;
+  severity: GuardrailSeverity;
+  rationale: string;
+  pattern: string;
+  matched_text: string;
+  char_start: number;
+  char_end: number;
+}
+
+export interface GuardrailStatus {
+  status: 'ok' | 'skipped' | 'error';
+  policy_id?: string;
+  rule_count?: number;
+  passed?: boolean;
+  violation_count?: number;
+  max_severity?: GuardrailSeverity | null;
+  violations?: GuardrailViolation[];
+  reason?: string;
+}
+
 export interface GenerateDraftResponse {
   topic: string;
   voice_profile: string;
@@ -33,7 +57,7 @@ export interface GenerateDraftResponse {
     fusion: { method: string; rrf_k: number; fused_candidate_count: number; returned: number };
   };
   faithfulness: { status: string; reason?: string };
-  guardrails: { status: string; reason?: string };
+  guardrails: GuardrailStatus;
 }
 
 @Injectable({ providedIn: 'root' })

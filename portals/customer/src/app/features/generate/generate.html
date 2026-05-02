@@ -79,7 +79,7 @@
             generator: <code>{{ d.generator }}</code>
             · voice: <code>{{ d.voice_profile }}</code>
             · faithfulness: <span class="status-pill">{{ d.faithfulness.status }}</span>
-            · guardrails: <span class="status-pill">{{ d.guardrails.status }}</span>
+            · guardrails: <span [class]="guardrailHeadlineClass()">{{ guardrailHeadlineLabel() }}</span>
           </mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
@@ -99,37 +99,85 @@
         </mat-card-content>
       </mat-card>
 
-      <mat-card class="citations-card">
-        <mat-card-header>
-          <mat-card-title>Citations</mat-card-title>
-          <mat-card-subtitle>
-            {{ citations().length }} ground-truth source{{ citations().length === 1 ? '' : 's' }}
-            from <code>child_chunk_embeddings</code>
-          </mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <ol class="citation-list">
-            @for (c of citations(); track c.marker) {
-              <li class="citation-item">
-                <div class="citation-head">
-                  <span class="citation-marker">{{ c.marker }}</span>
-                  <span class="citation-source">
-                    <code>{{ c.dataset_name }}</code>
-                    · page {{ c.page_index }}
-                    · {{ c.parent_id }}
-                  </span>
-                  @if (c.rrf_score !== null) {
-                    <span class="citation-score" title="RRF fused score">
-                      {{ c.rrf_score!.toFixed(4) }}
+      <div class="side-stack">
+        <mat-card class="citations-card">
+          <mat-card-header>
+            <mat-card-title>Citations</mat-card-title>
+            <mat-card-subtitle>
+              {{ citations().length }} ground-truth source{{ citations().length === 1 ? '' : 's' }}
+              from <code>child_chunk_embeddings</code>
+            </mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <ol class="citation-list">
+              @for (c of citations(); track c.marker) {
+                <li class="citation-item">
+                  <div class="citation-head">
+                    <span class="citation-marker">{{ c.marker }}</span>
+                    <span class="citation-source">
+                      <code>{{ c.dataset_name }}</code>
+                      · page {{ c.page_index }}
+                      · {{ c.parent_id }}
                     </span>
+                    @if (c.rrf_score !== null) {
+                      <span class="citation-score" title="RRF fused score">
+                        {{ c.rrf_score!.toFixed(4) }}
+                      </span>
+                    }
+                  </div>
+                  <div class="citation-snippet">{{ c.snippet }}</div>
+                </li>
+              }
+            </ol>
+          </mat-card-content>
+        </mat-card>
+
+        @if (guardrails(); as g) {
+          <mat-card class="guardrails-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon class="title-icon" [class.shield-ok]="g.passed">{{ g.passed ? 'verified' : 'gpp_maybe' }}</mat-icon>
+                Guardrails
+              </mat-card-title>
+              <mat-card-subtitle>
+                @if (g.status === 'ok') {
+                  policy <code>{{ g.policy_id }}</code>
+                  · {{ g.rule_count }} rules
+                  · {{ g.violation_count }} violation{{ g.violation_count === 1 ? '' : 's' }}
+                } @else {
+                  status <code>{{ g.status }}</code>
+                  @if (g.reason) { · {{ g.reason }} }
+                }
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              @if (g.status === 'ok' && (guardrailViolations().length > 0)) {
+                <ul class="violation-list">
+                  @for (v of guardrailViolations(); track v.rule_id + v.char_start) {
+                    <li class="violation-item">
+                      <div class="violation-head">
+                        <span [class]="severityClass(v.severity)">{{ v.severity }}</span>
+                        <code class="rule-id">{{ v.rule_id }}</code>
+                        <span class="violation-cat">{{ v.category }}</span>
+                      </div>
+                      <div class="violation-match">
+                        matched: <span class="match-text">{{ v.matched_text }}</span>
+                        <span class="char-range">@ {{ v.char_start }}–{{ v.char_end }}</span>
+                      </div>
+                      <div class="violation-rationale">{{ v.rationale }}</div>
+                    </li>
                   }
+                </ul>
+              } @else if (g.status === 'ok' && g.passed) {
+                <div class="guardrails-clean">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>No banned-phrase / forbidden-claim matches in this draft.</span>
                 </div>
-                <div class="citation-snippet">{{ c.snippet }}</div>
-              </li>
-            }
-          </ol>
-        </mat-card-content>
-      </mat-card>
+              }
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
     </div>
   }
 </div>
