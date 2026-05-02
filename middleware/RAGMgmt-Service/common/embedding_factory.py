@@ -8,6 +8,9 @@ Backends:
   * `sentence_transformer`— SentenceTransformerEmbedder (requires
                             `[real-embedder]` extra; falls back to stub when
                             the dep or model name is missing).
+  * `aws_bedrock`         — BedrockEmbedder (Project A Excel AWS architecture
+                            row "Embedding"; requires `[bedrock-drafter]`
+                            extra + BEDROCK_EMBEDDING_MODEL_ID set).
 
 NOTE: this factory only swaps the QUERY-side embedder. The DAG-side embedder
 in `embed_via_pgvector.py` lives in a separate Python process (Airflow); to
@@ -35,10 +38,47 @@ def build_embedder(settings) -> IEmbedder:
     if backend == "sentence_transformer":
         return _build_sentence_transformer_or_fallback(settings)
 
+    if backend == "aws_bedrock":
+        return _build_bedrock_or_fallback(settings)
+
     LOGGER.warning(
         "Unknown RAG_EMBEDDER_BACKEND=%r — falling back to stub", backend,
     )
     return StubEmbedder()
+
+
+def _build_bedrock_or_fallback(settings) -> IEmbedder:
+    model_id = getattr(settings, "bedrock_embedding_model_id", "") or ""
+    if not model_id:
+        LOGGER.warning(
+            "RAG_EMBEDDER_BACKEND=aws_bedrock but BEDROCK_EMBEDDING_MODEL_ID "
+            "is unset; falling back to stub."
+        )
+        return StubEmbedder()
+
+    try:
+        from common.bedrock_embedder import BedrockEmbedder
+        import boto3  # type: ignore[import-not-found] # noqa: F401
+    except ImportError as exc:
+        LOGGER.warning(
+            "RAG_EMBEDDER_BACKEND=aws_bedrock but boto3 not installed (%s); "
+            "install with `pip install '.[bedrock-drafter]'`. Falling back to stub.",
+            exc,
+        )
+        return StubEmbedder()
+
+    expected_dim = getattr(settings, "bedrock_embedding_dim", EMBED_DIM)
+    region = getattr(settings, "bedrock_region", "us-east-1")
+    LOGGER.info(
+        "Using BedrockEmbedder (model=%s, dim=%d, region=%s) — "
+        "the corpus must be re-embedded with the same model.",
+        model_id, expected_dim, region,
+    )
+    return BedrockEmbedder(
+        model_id=model_id,
+        region=region,
+        expected_dim=expected_dim,
+    )
 
 
 def _build_sentence_transformer_or_fallback(settings) -> IEmbedder:

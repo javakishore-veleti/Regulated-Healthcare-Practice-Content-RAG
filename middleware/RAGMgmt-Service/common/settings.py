@@ -74,6 +74,15 @@ class Settings(BaseSettings):
     rag_embedder_backend: str = "stub"
     rag_embedder_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    # Bedrock embedder — used when RAG_EMBEDDER_BACKEND=aws_bedrock. Project A
+    # Excel names Amazon Titan Embed v2 OR Cohere Embed v4. The dim must match
+    # the pgvector / OpenSearch column; Titan v2 supports a `dimensions`
+    # parameter so the SAME column dim works on default (1024 for Cohere
+    # alignment) — but if you keep the legacy 384-dim column, set this to
+    # 384 and Titan will return 384-dim vectors via the `dimensions` request.
+    bedrock_embedding_model_id: str = ""
+    bedrock_embedding_dim: int = 384
+
     # Retrieval backend — where the corpus index lives.
     # `postgres` is the local-dev / single-region default (pgvector + tsvector
     # in the rag_vectors DB). `aws_opensearch_serverless` is the README's
