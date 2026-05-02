@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8001
 
+    # Airflow integration. When airflow_base_url is set, the ingest flow triggers a
+    # DAG via Airflow's REST API instead of running the synchronous storage-handler stub.
+    airflow_base_url: str | None = None
+    airflow_username: str = "admin"
+    airflow_password: str = "admin"
+    airflow_poll_interval_secs: float = 1.5
+    airflow_timeout_secs: float = 180.0
+
     @property
     def db_conninfo(self) -> str:
         return (

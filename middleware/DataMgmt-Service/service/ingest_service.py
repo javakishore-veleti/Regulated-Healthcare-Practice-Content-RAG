@@ -12,6 +12,7 @@ from common.tracing import traced
 from dao.datasets_dao import IDataSetsDao
 from dao.endpoints_dao import IEndpointsDao
 from dao.ingest_dao import IIngestDao
+from service.dag_trigger.dag_trigger import IDagTrigger
 from service.storage.dispatcher import StorageDispatcher
 
 LOCATION_TYPE_LOCALHOST = "localhost"
@@ -39,11 +40,13 @@ class IngestService:
         endpoints_dao: IEndpointsDao,
         ingest_dao: IIngestDao,
         dispatcher: StorageDispatcher,
+        dag_trigger: IDagTrigger | None = None,
     ) -> None:
         self._datasets_dao = datasets_dao
         self._endpoints_dao = endpoints_dao
         self._ingest_dao = ingest_dao
         self._dispatcher = dispatcher
+        self._dag_trigger = dag_trigger
 
     @traced("ingest.service.start_ingest")
     async def start_ingest(
@@ -93,23 +96,32 @@ class IngestService:
                 return RC_OK
 
         # Normal path: create in_progress row, dispatch, mark success/failure.
+        # Prefer Airflow when configured; fall back to in-process handler otherwise.
         ctx["ingest_status"] = INGEST_STATUS_IN_PROGRESS
-        ctx["configs_json_text"] = json.dumps({"force_refresh": req.force_refresh})
+        ctx["configs_json_text"] = json.dumps(
+            {
+                "force_refresh": req.force_refresh,
+                "executor": "airflow" if self._dag_trigger else "inproc_handler",
+            }
+        )
         rc = await self._ingest_dao.create_run_for_ingest(req, resp)
         if rc != RC_OK:
             return rc
 
         try:
-            handler_rc = await handler.execute_ingest(req, resp)
+            if self._dag_trigger is not None:
+                executor_rc = await self._dag_trigger.trigger_and_wait(req, resp)
+            else:
+                executor_rc = await handler.execute_ingest(req, resp)
         except Exception as exc:  # noqa: BLE001
-            handler_rc = -1
-            ctx["error_text"] = f"handler raised: {exc!r}"
+            executor_rc = -1
+            ctx["error_text"] = f"executor raised: {exc!r}"
 
-        if handler_rc == RC_OK:
+        if executor_rc == RC_OK:
             ctx["ingest_status"] = INGEST_STATUS_SUCCESS
         else:
             ctx["ingest_status"] = INGEST_STATUS_FAILURE
-            ctx.setdefault("error_text", f"handler returned rc={handler_rc}")
+            ctx.setdefault("error_text", f"executor returned rc={executor_rc}")
 
         rc = await self._ingest_dao.mark_status_for_ingest(req, resp)
         if rc != RC_OK:

@@ -10,6 +10,7 @@ from common.settings import get_settings
 from dao.datasets_dao import PostgresDataSetsDao
 from dao.endpoints_dao import PostgresEndpointsDao
 from dao.ingest_dao import PostgresIngestDao
+from service.dag_trigger.airflow_dag_trigger import AirflowDagTrigger
 from service.datasets_service import DataSetsService
 from service.endpoints_service import EndpointsService
 from service.ingest_service import IngestService
@@ -32,6 +33,16 @@ async def lifespan(app: FastAPI):
     dispatcher = StorageDispatcher()
     dispatcher.register("localhost", LocalhostStorageHandler())
 
+    dag_trigger = None
+    if settings.airflow_base_url:
+        dag_trigger = AirflowDagTrigger(
+            base_url=settings.airflow_base_url,
+            username=settings.airflow_username,
+            password=settings.airflow_password,
+            poll_interval_secs=settings.airflow_poll_interval_secs,
+            timeout_secs=settings.airflow_timeout_secs,
+        )
+
     app.state.endpoints_service = EndpointsService(endpoints_dao)
     app.state.datasets_service = DataSetsService(datasets_dao)
     app.state.ingest_service = IngestService(
@@ -39,6 +50,7 @@ async def lifespan(app: FastAPI):
         endpoints_dao=endpoints_dao,
         ingest_dao=ingest_dao,
         dispatcher=dispatcher,
+        dag_trigger=dag_trigger,
     )
 
     try:
