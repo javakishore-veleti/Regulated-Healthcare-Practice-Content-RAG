@@ -83,6 +83,36 @@ jobs:
         working-directory: portals/${{ matrix.portal }}
         run: npm run build -- --configuration=production
 
+  portal-images:
+    name: Docker — portal images (admin, customer)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        portal: [admin, customer]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: portals/${{ matrix.portal }}
+          file: portals/${{ matrix.portal }}/Dockerfile
+          push: false
+          load: true
+          tags: rhc-${{ matrix.portal }}:ci
+          cache-from: type=gha,scope=rhc-${{ matrix.portal }}
+          cache-to: type=gha,scope=rhc-${{ matrix.portal }},mode=max
+
+      - name: Inspect image — non-root user, exposed port
+        run: |
+          docker image inspect rhc-${{ matrix.portal }}:ci \
+            --format 'user={{ "{{.Config.User}}" }} ports={{ "{{.Config.ExposedPorts}}" }}'
+
   docker-images:
     name: Docker — service images
     runs-on: ubuntu-latest
