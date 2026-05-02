@@ -432,46 +432,8 @@ code {
   }
 }
 
-// ── Per-citation corpus chip ─────────────────────────────────────────────
-// Same color taxonomy as the coverage panel so a citation's chip immediately
-// places it in the right corpus.
-.corpus-chip {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  padding: 0.1rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.corpus-regulator,
-.corpus-coverage.corpus-regulator {
-  // Deep teal — the regulator is the authoritative voice.
-  background: color-mix(in srgb, var(--rhc-top-nav-bg) 14%, transparent);
-  color: var(--rhc-top-nav-bg);
-  border-color: color-mix(in srgb, var(--rhc-top-nav-bg) 35%, transparent);
-}
-
-.corpus-clinical-evidence,
-.corpus-coverage.corpus-clinical-evidence {
-  // Cyan — pairs with the project palette (Material primary).
-  background: color-mix(in srgb, #0089A7 12%, transparent);
-  color: #0089A7;
-  border-color: color-mix(in srgb, #0089A7 32%, transparent);
-}
-
-.corpus-practice-voice,
-.corpus-coverage.corpus-practice-voice {
-  // Warm amber — the brand/voice layer; matches --rhc-top-nav-active.
-  background: color-mix(in srgb, var(--rhc-top-nav-active) 18%, transparent);
-  color: color-mix(in srgb, var(--rhc-top-nav-active) 60%, #000 40%);
-  border-color: color-mix(in srgb, var(--rhc-top-nav-active) 50%, transparent);
-}
-
-.corpus-unknown {
-  background: var(--mat-sys-surface-container-low);
-  color: var(--mat-sys-on-surface-variant);
-  border-color: var(--mat-sys-outline-variant);
-}
+// .corpus-chip + per-corpus accent classes are defined globally in
+// portals/customer/src/styles.scss so the catalog screen and any future
+// dataset-listing screen can use the same chips without duplication.
+// Coverage-panel-specific overrides for `.corpus-coverage.corpus-*` stay
+// global there too, since the coverage panel uses the same chip backgrounds.

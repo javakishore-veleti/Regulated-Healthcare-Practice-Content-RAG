@@ -27,7 +27,13 @@
     @for (card of cards(); track card.dataset.dataset_name) {
       <mat-card class="dataset-card">
         <mat-card-header>
-          <mat-card-title>{{ card.dataset.dataset_name }}</mat-card-title>
+          <mat-card-title>
+            <span [class]="corpusChipClassFor(card.dataset.dataset_name)"
+                  [title]="'corpus: ' + corpusLabelFor(card.dataset.dataset_name)">
+              {{ corpusLabelFor(card.dataset.dataset_name) }}
+            </span>
+            {{ card.dataset.dataset_name }}
+          </mat-card-title>
           <mat-card-subtitle>
             <code>{{ card.dataset.dataset_type }}</code>
           </mat-card-subtitle>

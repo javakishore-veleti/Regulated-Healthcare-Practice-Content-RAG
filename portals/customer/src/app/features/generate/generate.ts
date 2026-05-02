@@ -19,17 +19,16 @@ import {
   RagmgmtApiService,
   RetrievalMeta,
 } from '../../core/api/ragmgmt-api.service';
+import {
+  CORPUS_LABEL,
+  corpusChipClass as sharedCorpusChipClass,
+  corpusLabel as sharedCorpusLabel,
+} from '../../core/corpus-types';
 
 // Order chosen to match how the backend's three_corpora_search returns groups
 // (regulator → clinical_evidence → practice_voice). Matches the README's
 // listing order for the three corpora.
 const CORPUS_ORDER: CorpusType[] = ['regulator', 'clinical_evidence', 'practice_voice'];
-
-const CORPUS_LABEL: Record<CorpusType, string> = {
-  regulator: 'Regulator',
-  clinical_evidence: 'Clinical evidence',
-  practice_voice: 'Practice voice',
-};
 
 interface CorpusCoverage {
   type: CorpusType;
@@ -179,17 +178,10 @@ export class GenerateComponent {
     return 'sev sev-low';
   }
 
-  /** CSS class for per-corpus chips. Stays out of the SCSS as a string switch
-   *  so `:host ::ng-deep` rules can target a single class per corpus type. */
-  corpusChipClass(type: CorpusType | null | undefined): string {
-    if (!type) return 'corpus-chip corpus-unknown';
-    return `corpus-chip corpus-${type.replace('_', '-')}`;
-  }
-
-  corpusLabel(type: CorpusType | null | undefined): string {
-    if (!type) return 'unknown';
-    return CORPUS_LABEL[type] ?? type;
-  }
+  /** Thin pass-throughs to the shared helpers — kept as instance methods so
+   *  the template can call them without an extra component import. */
+  corpusChipClass = sharedCorpusChipClass;
+  corpusLabel = sharedCorpusLabel;
 
   setTopic(v: string): void {
     this.topic.set(v);

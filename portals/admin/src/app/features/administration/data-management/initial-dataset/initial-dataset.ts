@@ -14,6 +14,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 
 import { AppConfigService } from '../../../../core/api/app-config.service';
 import { DatamgmtApiService } from '../../../../core/api/datamgmt-api.service';
+import { corpusChipClass, corpusForDataset, corpusLabel } from '../../../../core/corpus-types';
 import {
   DatasetRow,
   EndpointRow,
@@ -169,6 +170,17 @@ export class InitialDatasetComponent implements OnInit {
           this.updateUi(datasetName, { triggering: false });
         },
       });
+  }
+
+  /** Three-corpora chip helpers — derived locally from dataset_name so the
+   *  Initial DataSet tabs show which corpus each dataset belongs to without
+   *  an extra API field. Mirrors source-urls.ts and the customer catalog. */
+  corpusChipClassFor(name: string | null | undefined): string {
+    return corpusChipClass(corpusForDataset(name));
+  }
+
+  corpusLabelFor(name: string | null | undefined): string {
+    return corpusLabel(corpusForDataset(name));
   }
 
   statusClass(status: string): string {

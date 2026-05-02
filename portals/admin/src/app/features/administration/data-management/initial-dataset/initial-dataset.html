@@ -35,7 +35,13 @@
           <div class="tab-body">
             <mat-card class="card-summary">
               <mat-card-header>
-                <mat-card-title>{{ ds.dataset_name }}</mat-card-title>
+                <mat-card-title>
+                  <span [class]="corpusChipClassFor(ds.dataset_name)"
+                        [title]="'corpus: ' + corpusLabelFor(ds.dataset_name)">
+                    {{ corpusLabelFor(ds.dataset_name) }}
+                  </span>
+                  {{ ds.dataset_name }}
+                </mat-card-title>
                 <mat-card-subtitle>
                   type: <code>{{ ds.dataset_type }}</code>
                 </mat-card-subtitle>

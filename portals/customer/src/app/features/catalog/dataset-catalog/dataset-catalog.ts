@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { DatamgmtApiService } from '../../../core/api/datamgmt-api.service';
 import { DatasetRow, IngestRunRow } from '../../../core/api/api.types';
+import { corpusChipClass, corpusForDataset, corpusLabel } from '../../../core/corpus-types';
 
 interface DatasetCard {
   dataset: DatasetRow;
@@ -75,5 +76,16 @@ export class DatasetCatalogComponent implements OnInit {
     if (card.latestAny?.ingest_status === 'in_progress') return 'badge badge-progress';
     if (card.latestAny?.ingest_status === 'failure') return 'badge badge-failure';
     return 'badge badge-pending';
+  }
+
+  /** Three-corpora chip helpers — derived locally from the dataset_name.
+   *  Lets the catalog show which README-promised corpus a dataset belongs to
+   *  without a separate API field on DatasetRow. */
+  corpusChipClassFor(name: string | null | undefined): string {
+    return corpusChipClass(corpusForDataset(name));
+  }
+
+  corpusLabelFor(name: string | null | undefined): string {
+    return corpusLabel(corpusForDataset(name));
   }
 }
