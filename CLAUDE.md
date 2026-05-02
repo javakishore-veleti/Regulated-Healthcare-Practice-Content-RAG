@@ -46,16 +46,54 @@ These are the design commitments to honor when implementing retrieval/generation
   - **Acceptable technical names** (system concerns where a domain name would be misleading): things like `metadata_db_vacuum`, `airflow_log_rotate`.
 - The same rule applies to **RAG component names** in general — services, modules, classes, and endpoints should reflect their healthcare-RAG function (e.g., `RegulatorRulesRetriever`, `PracticeVoiceReranker`) rather than generic technical labels (`Service1`, `RetrieverImpl`, `Helper`). Match the project's domain language as much as possible.
 - **Modular, not monolithic.** Do not write one giant DAG that fetches → cleans → chunks → embeds → loads. Split each concern into its own DAG (or a TaskGroup / sub-DAG) so individual stages can be re-run, replaced, and observed in isolation. A new dataset in the Excel should mostly mean *configuring* existing DAGs, not copy-pasting a new monolith.
-- **Reusable storage backend.** Every download/ingest path must go through a single shared storage abstraction that supports four destinations uniformly: **localhost filesystem**, **AWS S3**, **Azure Blob Storage**, **GCP Cloud Storage**. Implement once (e.g., `StorageBackend` interface with `LocalFsBackend`, `S3Backend`, `AzureBlobBackend`, `GcsBackend` implementations) and have every DAG and FastAPI ingest endpoint depend on the interface, not on a specific cloud SDK. The destination is selected per-ingest-run via the `system_datasets_ingest.configs_json` config; credentials follow the Deployment target rules below (`.env` locally, cloud-native key vault when deployed).
-- **Localhost path layout (for `LocalFsBackend`):**
-  ```
-  $HOME/runtime_data/RAG_Projects/Regulated-Healthcare-RAG/DataSets/<DataSetSlug>/Latest_Ingest/
-  ```
-  - `$HOME` = the OS user's home directory.
-  - `<DataSetSlug>` = the dataset's name normalized to contain **no spaces and no special characters** — keep `[A-Za-z0-9_]` only, drop everything else (e.g., `AHPRA Advertising Rules (AU)` → `AHPRA_Advertising_Rules_AU`). The slug must match the value persisted in `system_datasets.dataset_name`, so the same canonical form is shared between DB rows, the storage path, and admin-portal labels.
-  - `Latest_Ingest/` always holds the most recent ingest's artifacts. (If historical ingests need to be preserved, decide and document the sibling-folder convention before introducing it — do not invent one silently.)
-- **Localhost ingest is idempotent — short-circuit if already downloaded.** When the ingest workflow is invoked with destination = localhost and the dataset's `Latest_Ingest/` is already populated (and the prior ingest succeeded per `system_datasets_ingest`), do **not** re-download. Return success immediately so the RAG side can proceed without waiting on a no-op fetch. The check belongs in the ingest entry-point (FastAPI endpoint and/or first task of the DAG), not pushed down into individual fetchers. This rule is **localhost only** for now — S3 / Azure Blob / GCS destinations have not been specified, so do not generalize the short-circuit to them without asking. A force-refresh path (admin re-trigger that bypasses the cache hit) is anticipated but **not** implemented until the user requests it.
+
+## Endpoints — environment-agnostic data movement
+
+The codebase must **not** branch on "local vs cloud" anywhere in business logic. Every data movement (download, upload, persist, audit-log) is parameterized by an **endpoint** row in the DB. "Local" is just one `location_type` among many, not a default.
+
+**`endpoints` table (DB schema):**
+- `id` (PK)
+- `category` — high-level grouping. First known value: `initial_dataset`. Other categories will appear later (e.g., `vector_store`, `audit_index`).
+- `location_type` — concrete destination kind. The set will grow to ~25+ types over time. Initial set includes at minimum: `localhost`, `aws_s3`, `azure_blob`, `gcp_gcs`, `pgvector`, `aws_opensearch`, `localhost_opensearch`. Add new types by inserting rows + adding one new handler implementation, not by editing every DAG/endpoint.
+- `location_config_json` — per-endpoint config (paths, bucket names, regions, credential references). Credentials themselves are NOT stored here — they resolve from `.env` locally and from the cloud-native secret manager when deployed.
+- standard audit columns
+
+**API contract:** ingest / movement endpoints accept an `endpoint` reference (id or name) on the request. The service layer looks it up and dispatches by `location_type` through a single dispatch table. `system_datasets_ingest` references `endpoints` via FK — the ingested-location info is the endpoint row, not a free-form string column.
+
+**`localhost` endpoint specifics** (one of many `location_type`s, not a default):
+- Path: `$HOME/runtime_data/RAG_Projects/Regulated-Healthcare-RAG/DataSets/<DataSetSlug>/Latest_Ingest/`. Slug = `[A-Za-z0-9_]` only, must match `system_datasets.dataset_name` (e.g., `AHPRA Advertising Rules (AU)` → `AHPRA_Advertising_Rules_AU`).
+- `Latest_Ingest/` holds the most recent ingest's artifacts; do not invent a historical-version sibling convention without asking.
+- Idempotency: when an ingest run targets a `localhost` endpoint and `Latest_Ingest/` is already populated with a successful prior ingest (per `system_datasets_ingest`), short-circuit and return success without re-downloading. The check belongs in the ingest entry-point (FastAPI handler / first DAG task), not deep inside fetchers. This rule is `localhost`-only — do not generalize to other `location_type`s without asking. A force-refresh override is anticipated but not implemented until requested.
+
+## Middleware architecture (FastAPI services)
+
+Every middleware service follows the same layered structure:
+
+```
+middleware/<service-name>/
+  api/        # FastAPI route handlers (thin); depend on service interfaces only
+  service/    # Business logic; expose interfaces (Protocol / abc); concrete impls injected
+  dao/        # Data access; expose interfaces; concrete impls per backend (Postgres, OpenSearch, ...)
+  common/     # Shared constants and utils used by api/, service/, and dao/
+```
+
+Strict rules:
+- `api/` depends only on `service/` interfaces — never imports DAOs or DB drivers.
+- `service/` depends only on `dao/` interfaces — never imports DB drivers.
+- `dao/` is the only layer that touches a DB driver. Multiple DAO implementations are normal (e.g., `PostgresPracticeVoiceDao`, `OpenSearchPracticeVoiceDao`); selection is by config / endpoint, not by code edits in `service/`.
+- **OpenAPI / Swagger:** every API exposes `/docs` and `/openapi.json`. Document request/response with Pydantic models — no implicit `Any`.
+- **OpenTelemetry spans:** every API handler, every service method, and every DAO method is wrapped in a span. Span names use the project's domain language (e.g., `regulator_rules.ingest`, `practice_voice.search`), not generic technical names.
+- **Jaeger integration:** OTLP traces are exported from FastAPI services. In the local-dev stack, the receiver is the Jaeger service in `DevOps/Local/Observability/Jaeger/`.
+- **OpenSearch audit log — feature-toggled.** When toggle `OPENSEARCH_AUDIT_ENABLED=true`, every long-lived workflow (especially ingestion) writes a **single denormalized record at completion** containing both start and end metadata (workflow id, dataset, endpoint id, start_dt, end_dt, status, error). Do not write a start-only record and a separate end record. The OpenSearch instance is itself resolved via an `endpoints` row of category `audit_index` so the same code targets localhost OpenSearch, AWS OpenSearch, or any compatible alternative.
+
+## Database schema management
+
+Use a **Liquibase-style migration** approach (Liquibase itself or a Python equivalent — confirm at implementation time). Migration changelogs live in version control alongside the relevant middleware service. **Migrations run automatically as part of `DevOps/Local/docker-all-up.sh`** so any fresh local checkout produces a fully migrated DB without manual steps.
+
+## Local stack lifecycle
+
+`DevOps/Local/docker-all-down.sh` **removes named volumes by default** so a `down` followed by `up` produces a clean DB. This is destructive — pass `--keep-volumes` when data preservation is needed.
 
 ## Deployment target
 
-README mentions an **AWS Architecture** section (currently empty). Assume AWS as the deployment target when making infra-shaped decisions, but confirm specifics with the user — nothing is committed yet.
+README mentions an **AWS Architecture** section (currently empty). Assume AWS as the deployment target when making infra-shaped decisions, but confirm specifics with the user — nothing is committed yet. **Do not bake "local" assumptions into business logic** (Airflow executor choice, file paths, storage SDKs, OpenSearch hostnames, etc.) — those are environment concerns and belong behind the endpoint abstraction or behind environment-specific config, never hard-coded.
