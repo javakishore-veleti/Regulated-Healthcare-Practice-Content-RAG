@@ -1,0 +1,48 @@
+# Repo-root .dockerignore. Build context for service Dockerfiles is the repo
+# root (so they can share `requirements.txt`); excluding noise keeps images
+# small and reproducible across cloud targets.
+
+# Editor / IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Version control
+.git/
+.gitignore
+
+# Local dev artefacts
+.env
+.envrc
+.venv/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+
+# Frontend portals (not part of the FastAPI service images)
+portals/admin/node_modules/
+portals/admin/dist/
+portals/admin/.angular/
+portals/customer/node_modules/
+portals/customer/dist/
+portals/customer/.angular/
+
+# DAGs travel with the Airflow image, not the FastAPI services
+middleware/Regulated-Healthcare-DAGS/
+
+# Local stack — strictly local-dev tooling
+DevOps/
+
+# Service-level uv venvs / lock artefacts
+**/uv.lock
+
+# Tests / fixtures (not present yet but pre-emptively excluded)
+**/tests/
+
+# README assets / docs (no need to ship in the service image)
+README*.md
+CLAUDE.md
+LICENSE

@@ -434,6 +434,23 @@ The codebase has explicit rules — captured in `CLAUDE.md` — that every artif
 - DAG handler imports use `importlib.util.spec_from_file_location` (not `sys.path` tricks).
 - Static-SPA portals served by ingress / CDN; no `ng serve` in production.
 
+### Building the FastAPI service images
+
+Both middleware services have production Dockerfiles. Build context is **the repo root** so the images share the canonical `requirements.txt`. The `SECRETS_PROVIDER` build arg controls which cloud secret-manager SDK is baked in:
+
+```sh
+# DataMgmt-Service — local-dev image (no cloud secrets SDK)
+docker build -f middleware/DataMgmt-Service/Dockerfile -t rhc-datamgmt:dev .
+
+# RAGMgmt-Service — AWS deploy image
+docker build -f middleware/RAGMgmt-Service/Dockerfile \
+    --build-arg SECRETS_PROVIDER=aws -t rhc-ragmgmt:aws .
+
+# Other valid values: SECRETS_PROVIDER=azure | gcp | none (default: none)
+```
+
+Both images run as non-root (`uid 10001`), expose `/health`, and read every secret-shaped setting through the `resolve_secret()` plumbing — so the same image deploys to AWS / Azure / GCP just by changing env-var values.
+
 ---
 
 ## Troubleshooting
