@@ -24,28 +24,103 @@ RAGMGMT_TIMEOUT_SECS = 30
 DEFAULT_PARENT_SIZE = 1500
 DEFAULT_CHILD_SIZE = 256
 
-# Strip <script>...</script> and <style>...</style> wholesale, then strip remaining
-# tags. Robust against HTML void elements (<meta>, <link>) where stdlib HTMLParser's
-# start/end tag accounting goes off-by-one.
+# Pipeline:
+#   1. _extract_main_content  — prefer <main>, then <article>; falls through to
+#      the whole document when neither is present (older / static AHPRA pages).
+#   2. _strip_chrome          — drop nav/header/footer/aside/form/button/dialog,
+#      and the script/style/noscript scaffolding. These almost never carry
+#      regulator content; keeping them dilutes BM25 (high-rarity boilerplate
+#      tokens inflate scores) and dense retrieval (semantic dilution).
+#   3. _html_to_plain_text    — paragraph-aware tag strip + whitespace normalize.
+# Robust against HTML void elements (<meta>, <link>) where stdlib HTMLParser's
+# start/end tag accounting goes off-by-one. Pure stdlib.
+
 _SCRIPT_RE = re.compile(r"<script\b[^>]*>.*?</script>", re.DOTALL | re.IGNORECASE)
 _STYLE_RE = re.compile(r"<style\b[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
 _NOSCRIPT_RE = re.compile(r"<noscript\b[^>]*>.*?</noscript>", re.DOTALL | re.IGNORECASE)
-_BLOCK_RE = re.compile(r"</(p|div|section|article|header|footer|li|h[1-6]|br)\s*>", re.IGNORECASE)
+
+_MAIN_RE = re.compile(r"<main\b[^>]*>(.*?)</main>", re.DOTALL | re.IGNORECASE)
+_ARTICLE_RE = re.compile(r"<article\b[^>]*>(.*?)</article>", re.DOTALL | re.IGNORECASE)
+
+# Each entry strips the entire tagged region from the HTML (open through close),
+# along with anything the tag wrapped. <form> covers search/login boxes;
+# <button>/<dialog> cover modal/cookie chrome; <aside> is the conventional sidebar.
+_CHROME_TAG_NAMES = ("nav", "header", "footer", "aside", "form", "button", "dialog")
+_CHROME_REs = [
+    re.compile(rf"<{tag}\b[^>]*>.*?</{tag}>", re.DOTALL | re.IGNORECASE)
+    for tag in _CHROME_TAG_NAMES
+]
+
+# Common boilerplate by class/id substring — non-exhaustive, but covers what
+# AHPRA / FTC / PMC actually serve. Matches a containing element by class/id and
+# strips the entire tag pair.
+_CHROME_CLASS_PATTERNS = (
+    r'class="[^"]*\b(?:breadcrumb|skip-link|cookie|cookies|site-search|'
+    r'masthead|sidenav|sidebar|menu-toggle|backtotop)\b[^"]*"'
+)
+_CHROME_BY_CLASS_RE = re.compile(
+    rf'<(div|section|ul|ol|nav)\b[^>]*{_CHROME_CLASS_PATTERNS}[^>]*>.*?</\1>',
+    re.DOTALL | re.IGNORECASE,
+)
+
+_BLOCK_RE = re.compile(
+    r"</(p|div|section|article|header|footer|li|h[1-6]|br|tr)\s*>",
+    re.IGNORECASE,
+)
 _TAG_RE = re.compile(r"<[^>]+>")
 
+# A "main content" candidate must yield at least this much text; otherwise we
+# treat the <main> / <article> match as a false positive (some sites wrap the
+# header rail in <main>) and fall back to the chrome-stripped whole document.
+_MIN_MAIN_CONTENT_CHARS = 200
 
-def _html_to_text(html_str: str) -> str:
+
+def _extract_main_content(html_str: str) -> str:
+    """Return the inner HTML of the first <main> or <article> region that
+    contains a meaningful amount of content; otherwise return the input."""
+    for pattern in (_MAIN_RE, _ARTICLE_RE):
+        match = pattern.search(html_str)
+        if not match:
+            continue
+        candidate = match.group(1)
+        # Quick proxy for "is there real content here?" — strip tags inline and
+        # measure non-whitespace chars. Cheap, doesn't recurse the full pipeline.
+        approx_text = _TAG_RE.sub(" ", candidate)
+        if sum(1 for c in approx_text if not c.isspace()) >= _MIN_MAIN_CONTENT_CHARS:
+            return candidate
+    return html_str
+
+
+def _strip_chrome(html_str: str) -> str:
     s = _SCRIPT_RE.sub(" ", html_str)
     s = _STYLE_RE.sub(" ", s)
     s = _NOSCRIPT_RE.sub(" ", s)
+    for chrome_re in _CHROME_REs:
+        s = chrome_re.sub(" ", s)
+    s = _CHROME_BY_CLASS_RE.sub(" ", s)
+    return s
+
+
+def _html_to_plain_text(html_str: str) -> str:
     # Insert a paragraph boundary at the close of common block elements so the
     # parent-splitter sees real paragraph structure after we drop tags.
-    s = _BLOCK_RE.sub("\n\n", s)
+    s = _BLOCK_RE.sub("\n\n", html_str)
     s = _TAG_RE.sub(" ", s)
     s = _html_module.unescape(s)
     lines = [" ".join(line.split()) for line in s.splitlines()]
     meaningful = [line for line in lines if line]
     return "\n\n".join(meaningful)
+
+
+def _html_to_text(html_str: str) -> str:
+    """Pipeline: prefer-main-content → strip chrome → tags → normalize whitespace.
+
+    Pulled out for testability (see DAG-side unit smoke in this commit's diff)
+    and so a future feed (PMC XML, JSON-LD) can swap stages without touching
+    chunk_fetched_pages."""
+    main = _extract_main_content(html_str)
+    chrome_stripped = _strip_chrome(main)
+    return _html_to_plain_text(chrome_stripped)
 
 
 def chunk_fetched_pages(resolved: dict[str, Any]) -> dict[str, Any]:
