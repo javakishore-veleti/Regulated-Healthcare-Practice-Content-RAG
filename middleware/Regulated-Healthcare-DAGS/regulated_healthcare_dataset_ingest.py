@@ -40,7 +40,25 @@ DAG_ID = "regulated_healthcare_dataset_ingest"
 
 DATASET_TYPE_REGULATOR_GUIDELINES = "regulator_guidelines"
 TASK_FETCH_REGULATOR_GUIDELINES = "fetch_regulator_guidelines"
+TASK_CHUNK_VIA_RAGMGMT = "chunk_via_ragmgmt"
 TASK_WRITE_STUB_MANIFEST = "write_stub_manifest"
+
+
+def _load_handler_module(filename: str):
+    """Import a handler module by file path so this works regardless of how
+    Airflow's task runner has set up sys.path inside the forked subprocess."""
+    import importlib.util
+    from pathlib import Path
+
+    handler_path = Path(_DAGS_DIR) / "handlers" / filename
+    spec = importlib.util.spec_from_file_location(
+        f"rhc_handlers.{filename.replace('.py', '')}", handler_path
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load handler module at {handler_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _resolve_localhost_path(dataset_name: str, location_config: dict) -> Path:
@@ -105,21 +123,16 @@ def regulated_healthcare_dataset_ingest():
 
     @task(task_id=TASK_FETCH_REGULATOR_GUIDELINES)
     def fetch_regulator_guidelines(resolved: dict) -> dict:
-        # Load the sibling handler by file path so this works regardless of how
-        # Airflow's task runner has set up sys.path inside the forked subprocess.
-        import importlib.util
-        from pathlib import Path
-
-        handler_path = Path(_DAGS_DIR) / "handlers" / "ahpra_advertising_rules_fetch.py"
-        spec = importlib.util.spec_from_file_location(
-            "rhc_handlers.ahpra_advertising_rules_fetch", handler_path
-        )
-        if spec is None or spec.loader is None:
-            raise RuntimeError(f"could not load handler module at {handler_path}")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
+        module = _load_handler_module("ahpra_advertising_rules_fetch.py")
         return module.fetch_ahpra_advertising_rules(resolved)
+
+    @task(task_id=TASK_CHUNK_VIA_RAGMGMT)
+    def chunk_via_ragmgmt(resolved: dict, fetch_result: dict) -> dict:
+        # Modular per CLAUDE.md: chunking is its own task downstream of fetch
+        # so it can be re-run independently. Reads the manifest the fetch handler
+        # wrote. Gracefully no-ops when RAGMGMT_BASE_URL is unset.
+        module = _load_handler_module("chunk_via_ragmgmt.py")
+        return module.chunk_fetched_pages(resolved)
 
     @task(task_id=TASK_WRITE_STUB_MANIFEST)
     def write_stub_manifest(resolved: dict) -> dict:
@@ -147,8 +160,10 @@ def regulated_healthcare_dataset_ingest():
     branch = dispatch_by_dataset_type(resolved)
     fetch_branch = fetch_regulator_guidelines(resolved)
     stub_branch = write_stub_manifest(resolved)
+    chunk_branch = chunk_via_ragmgmt(resolved, fetch_branch)
 
     branch >> [fetch_branch, stub_branch]
+    fetch_branch >> chunk_branch
 
 
 regulated_healthcare_dataset_ingest()

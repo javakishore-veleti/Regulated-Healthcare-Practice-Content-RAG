@@ -20,6 +20,9 @@ services:
       # Path.home() resolves identically inside the container and on the host.
       HOME: "${HOME}"
       RHC_DATA_ROOT: "${HOME}"
+      # RAGMgmt-Service URL the chunk_via_ragmgmt DAG handler calls. Empty / unset
+      # is allowed and causes the chunking task to gracefully no-op.
+      RAGMGMT_BASE_URL: "${RAGMGMT_BASE_URL:-http://host.docker.internal:8002}"
     volumes:
       - ../../../middleware/Regulated-Healthcare-DAGS:/opt/airflow/dags:ro
       - ${HOME}/runtime_data:${HOME}/runtime_data:rw
