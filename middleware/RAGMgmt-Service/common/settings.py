@@ -46,6 +46,23 @@ class Settings(BaseSettings):
     rag_reranker_backend: str = "token_overlap"
     rag_reranker_alpha: float = 0.5
 
+    # Langfuse — the README's primary observability mechanism. Captures
+    # prompt/completion + retrieved-chunk metadata + faithfulness scores per
+    # generation request. All three fields unset → gracefully disabled (no-op).
+    # The langfuse SDK is an optional extra (`pip install '.[langfuse]'`); when
+    # not installed this is also disabled regardless of host.
+    langfuse_host: str | None = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_environment: str | None = None
+
+    @field_validator("langfuse_secret_key", "langfuse_public_key", mode="after")
+    @classmethod
+    def _resolve_langfuse_credentials(cls, v: str | None) -> str | None:
+        # Same resolution as db_password / anthropic_api_key — accepts cloud
+        # secret-manager refs (`aws-sm://...`, `azure-kv://...`, `gcp-sm://...`).
+        return resolve_secret(v)
+
     @field_validator("db_password", "anthropic_api_key", mode="after")
     @classmethod
     def _resolve_credentials(cls, v: str | None) -> str | None:

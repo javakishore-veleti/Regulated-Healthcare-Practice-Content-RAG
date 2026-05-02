@@ -13,6 +13,7 @@ from api import (
     retrieval_router,
 )
 from common.db import build_pool, build_vectors_pool
+from common.langfuse_client import LangfuseClient
 from common.otel import init_otel
 from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
@@ -95,6 +96,13 @@ async def lifespan(app: FastAPI):
     app.state.pool = pool
     app.state.vectors_pool = vectors_pool
 
+    app.state.langfuse_client = LangfuseClient(
+        host=settings.langfuse_host,
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
+        environment=settings.langfuse_environment,
+    )
+
     patterns_dao = PostgresRagPatternsDao(pool)
     retrieval_dao = PostgresRetrievalDao(vectors_pool)
 
@@ -121,6 +129,10 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        try:
+            app.state.langfuse_client.flush()
+        except Exception:  # pragma: no cover — shutdown best-effort
+            LOGGER.exception("langfuse flush on shutdown failed")
         await pool.close()
         await vectors_pool.close()
 
