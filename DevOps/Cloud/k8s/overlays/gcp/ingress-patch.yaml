@@ -1,0 +1,15 @@
+# GCE Ingress annotations + ingressClassName.
+# Pairs with managedcertificate.yaml (Google-managed TLS) and backendconfig.yaml
+# (custom health checks pointing at /health on the FastAPI services).
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rhc-rag
+  namespace: rhc-rag
+  annotations:
+    networking.gke.io/managed-certificates: rhc-rag-cert
+    kubernetes.io/ingress.global-static-ip-name: rhc-rag-static-ip   # create with `gcloud compute addresses create`
+    kubernetes.io/ingress.allow-http: "false"                        # HTTPS-only
+spec:
+  ingressClassName: gce

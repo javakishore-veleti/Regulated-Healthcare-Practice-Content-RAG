@@ -1,0 +1,17 @@
+# AGIC (Application Gateway Ingress Controller) annotations. Replace the
+# AppGW name + cert references before applying. Requires AGIC installed
+# (https://learn.microsoft.com/azure/application-gateway/ingress-controller-overview).
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rhc-rag
+  namespace: rhc-rag
+  annotations:
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    appgw.ingress.kubernetes.io/health-probe-path: /healthz
+    appgw.ingress.kubernetes.io/request-timeout: "60"
+    # Reference an AppGW SSL cert (or use AKV-backed cert):
+    # appgw.ingress.kubernetes.io/appgw-ssl-certificate: rhc-rag-cert
+spec:
+  ingressClassName: azure-application-gateway

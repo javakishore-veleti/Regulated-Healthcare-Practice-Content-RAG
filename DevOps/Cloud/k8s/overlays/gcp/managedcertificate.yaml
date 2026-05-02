@@ -1,0 +1,14 @@
+# Google-managed TLS certificate covering both portal subdomains. The Ingress
+# references this via the `networking.gke.io/managed-certificates` annotation.
+# DNS A records for both domains must point at the static IP referenced in
+# `kubernetes.io/ingress.global-static-ip-name` before this becomes active.
+
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: rhc-rag-cert
+  namespace: rhc-rag
+spec:
+  domains:
+    - admin.rhc-rag.example.com
+    - app.rhc-rag.example.com

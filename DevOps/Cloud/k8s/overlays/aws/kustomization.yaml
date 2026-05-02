@@ -1,0 +1,39 @@
+# AWS EKS overlay.
+#
+# Layers on top of base/:
+#   * Ingress class + ALB annotations (scheme, target-type, certificate-arn).
+#   * ExternalSecrets stubs pulling DB_PASSWORD / ANTHROPIC_API_KEY from AWS
+#     Secrets Manager (replace `secretRef`/`name` placeholders before applying).
+#   * Image registry overrides — point at your account's ECR.
+#
+# Apply:
+#   kubectl apply -k DevOps/Cloud/k8s/overlays/aws
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - externalsecret-datamgmt.example.yaml
+  - externalsecret-ragmgmt.example.yaml
+
+patches:
+  - path: ingress-patch.yaml
+    target:
+      kind: Ingress
+      name: rhc-rag
+
+# Replace with your ECR account / region / tag.
+images:
+  - name: rhc-datamgmt
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/rhc-datamgmt
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-ragmgmt
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/rhc-ragmgmt
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-admin
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/rhc-admin
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-customer
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/rhc-customer
+    newTag: REPLACE_WITH_TAG

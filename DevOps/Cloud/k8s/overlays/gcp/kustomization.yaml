@@ -1,0 +1,42 @@
+# GCP GKE overlay.
+#
+# Layers on top of base/:
+#   * GCE Ingress + ManagedCertificate (Google-managed TLS).
+#   * BackendConfig with the FastAPI services' health-check path.
+#   * ExternalSecrets stubs that read GCP Secret Manager. (Pods use Workload
+#     Identity bound to a GSA with secretAccessor.)
+#   * Image registry overrides — point at your project's Artifact Registry.
+#
+# Apply:
+#   kubectl apply -k DevOps/Cloud/k8s/overlays/gcp
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - managedcertificate.yaml
+  - backendconfig.yaml
+  - externalsecret-datamgmt.example.yaml
+  - externalsecret-ragmgmt.example.yaml
+
+patches:
+  - path: ingress-patch.yaml
+    target:
+      kind: Ingress
+      name: rhc-rag
+
+# Replace `my-project` and the region prefix with your Artifact Registry.
+images:
+  - name: rhc-datamgmt
+    newName: us-central1-docker.pkg.dev/my-project/rhc-rag/rhc-datamgmt
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-ragmgmt
+    newName: us-central1-docker.pkg.dev/my-project/rhc-rag/rhc-ragmgmt
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-admin
+    newName: us-central1-docker.pkg.dev/my-project/rhc-rag/rhc-admin
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-customer
+    newName: us-central1-docker.pkg.dev/my-project/rhc-rag/rhc-customer
+    newTag: REPLACE_WITH_TAG

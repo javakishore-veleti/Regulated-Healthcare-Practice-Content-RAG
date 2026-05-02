@@ -1,0 +1,40 @@
+# Azure AKS overlay.
+#
+# Layers on top of base/:
+#   * Ingress class + AGIC annotations (Application Gateway Ingress Controller).
+#   * Two SecretProviderClass stubs that pull credentials from Azure Key Vault
+#     via the AKV CSI driver. The pods need Workload Identity bound to a
+#     User-Assigned Managed Identity that has GET on the vault.
+#   * Image registry overrides — point at your subscription's ACR.
+#
+# Apply:
+#   kubectl apply -k DevOps/Cloud/k8s/overlays/azure
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - secretproviderclass-datamgmt.example.yaml
+  - secretproviderclass-ragmgmt.example.yaml
+
+patches:
+  - path: ingress-patch.yaml
+    target:
+      kind: Ingress
+      name: rhc-rag
+
+# Replace `myacr` with your ACR name.
+images:
+  - name: rhc-datamgmt
+    newName: myacr.azurecr.io/rhc-datamgmt
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-ragmgmt
+    newName: myacr.azurecr.io/rhc-ragmgmt
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-admin
+    newName: myacr.azurecr.io/rhc-admin
+    newTag: REPLACE_WITH_TAG
+  - name: rhc-customer
+    newName: myacr.azurecr.io/rhc-customer
+    newTag: REPLACE_WITH_TAG
