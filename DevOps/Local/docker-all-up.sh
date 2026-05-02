@@ -29,4 +29,7 @@ echo "==> Running database migrations"
 "$DIR/Postgres/run-migrations.sh"
 
 echo
+"$DIR/Scripts/seed-practice-voice.sh"
+
+echo
 echo "Stack is up. Run docker-all-status.sh to verify."
