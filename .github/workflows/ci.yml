@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-flight runs on the same ref when a new push comes in.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-services:
+    name: Python — services + handlers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install root requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Syntax-check Python source trees
+        run: |
+          python -m compileall -q middleware/DataMgmt-Service
+          python -m compileall -q middleware/RAGMgmt-Service
+          python -m compileall -q middleware/Regulated-Healthcare-DAGS
+
+      - name: Import smoke test — DataMgmt-Service
+        working-directory: middleware/DataMgmt-Service
+        run: python -c "from main import app; print('datamgmt OK', app.title)"
+
+      - name: Import smoke test — RAGMgmt-Service
+        working-directory: middleware/RAGMgmt-Service
+        run: python -c "from main import app; print('ragmgmt OK', app.title)"
+
+      - name: Resolve-secret smoke test (literal pass-through)
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, 'middleware/RAGMgmt-Service')
+          from common.secrets import resolve_secret
+          assert resolve_secret('plain-value') == 'plain-value'
+          assert resolve_secret(None) is None
+          assert resolve_secret('') == ''
+          print('secrets.py literal pass-through OK')
+          "
+
+  angular-portals:
+    name: Angular — admin + customer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        portal: [admin, customer]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: portals/${{ matrix.portal }}/package-lock.json
+
+      - name: Install
+        working-directory: portals/${{ matrix.portal }}
+        run: npm ci
+
+      - name: Production build
+        working-directory: portals/${{ matrix.portal }}
+        run: npm run build -- --configuration=production
+
+  docker-images:
+    name: Docker — service images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: DataMgmt-Service
+            image_name: rhc-datamgmt
+          - service: RAGMgmt-Service
+            image_name: rhc-ragmgmt
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build (no push) — SECRETS_PROVIDER=none
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: middleware/${{ matrix.service }}/Dockerfile
+          push: false
+          load: true
+          tags: ${{ matrix.image_name }}:ci
+          build-args: |
+            SECRETS_PROVIDER=none
+          cache-from: type=gha,scope=${{ matrix.image_name }}-none
+          cache-to: type=gha,scope=${{ matrix.image_name }}-none,mode=max
+
+      - name: Build (no push) — SECRETS_PROVIDER=aws
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: middleware/${{ matrix.service }}/Dockerfile
+          push: false
+          load: true
+          tags: ${{ matrix.image_name }}:ci-aws
+          build-args: |
+            SECRETS_PROVIDER=aws
+          cache-from: type=gha,scope=${{ matrix.image_name }}-aws
+          cache-to: type=gha,scope=${{ matrix.image_name }}-aws,mode=max
+
+      - name: Inspect resulting image — non-root user, exposed port
+        run: |
+          docker image inspect ${{ matrix.image_name }}:ci \
+            --format 'user={{ "{{.Config.User}}" }} ports={{ "{{.Config.ExposedPorts}}" }}'
+
+  sql-migrations:
+    name: SQL — migration parse check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: rhc_admin
+          POSTGRES_PASSWORD: rhc_local_dev
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rhc_admin -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap databases
+        env:
+          PGPASSWORD: rhc_local_dev
+        run: |
+          psql -h localhost -U rhc_admin -d postgres -v ON_ERROR_STOP=1 \
+            -f DevOps/Local/Postgres/init/01_create_databases.sql
+
+      - name: Run migrations via the project's runner
+        env:
+          PG_CONTAINER: ""   # not used in CI; we point psql straight at the service
+        run: |
+          # The runner uses `docker exec` against rhc-postgres; in CI we run psql
+          # directly. Recreate the runner's shape with a small inline loop.
+          set -euo pipefail
+          export PGPASSWORD=rhc_local_dev
+          for db in rag_app rag_vectors; do
+            echo "==> Migrating $db"
+            psql -h localhost -U rhc_admin -d "$db" -v ON_ERROR_STOP=1 -c \
+              "CREATE TABLE IF NOT EXISTS _schema_migrations (
+                 filename TEXT PRIMARY KEY,
+                 checksum TEXT NOT NULL,
+                 applied_dt TIMESTAMPTZ NOT NULL DEFAULT NOW()
+               );"
+            for f in $(find middleware -path "*/migrations/$db/V*.sql" -type f | sort); do
+              echo "  applying $f"
+              psql -h localhost -U rhc_admin -d "$db" -v ON_ERROR_STOP=1 -f "$f"
+            done
+          done

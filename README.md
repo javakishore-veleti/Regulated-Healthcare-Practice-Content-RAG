@@ -5,6 +5,7 @@
 **A compliance-first RAG stack for allied-health practices in regulated jurisdictions.**
 *Every claim must map to a citable source. Every draft must clear the regulator's banned-phrase line.*
 
+[![CI](https://github.com/javakishore-veleti/Regulated-Healthcare-Practice-Content-RAG/actions/workflows/ci.yml/badge.svg)](https://github.com/javakishore-veleti/Regulated-Healthcare-Practice-Content-RAG/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/javakishore-veleti/Regulated-Healthcare-Practice-Content-RAG)](LICENSE)
 [![Status](https://img.shields.io/badge/status-active%20development-orange)](#project-status)
 [![Last commit](https://img.shields.io/github/last-commit/javakishore-veleti/Regulated-Healthcare-Practice-Content-RAG)](https://github.com/javakishore-veleti/Regulated-Healthcare-Practice-Content-RAG/commits/main)
