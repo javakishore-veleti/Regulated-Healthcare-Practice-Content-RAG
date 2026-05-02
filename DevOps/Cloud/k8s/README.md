@@ -85,24 +85,37 @@ kubectl -n rhc-rag rollout status deploy/ragmgmt
 - Ingress: GCE Ingress + ManagedCertificate.
 - Airflow: Cloud Composer; mount DAGs from a GCS bucket the Composer env points at.
 
-## Adding a per-cloud overlay (suggested layout)
+## Per-cloud overlays (shipped)
 
 ```
 DevOps/Cloud/k8s/
 ├── base/
 └── overlays/
-    ├── aws/
-    │   ├── kustomization.yaml         # bases: ../../base; namespace prefix; image refs
-    │   ├── ingress-alb-patch.yaml
-    │   └── externalsecrets.yaml
-    ├── azure/
-    │   ├── kustomization.yaml
-    │   ├── ingress-agic-patch.yaml
-    │   └── secret-csi.yaml
-    └── gcp/
-        ├── kustomization.yaml
-        ├── ingress-gce-patch.yaml
-        └── managedcertificate.yaml
+    ├── aws/         # ALB ingress annotations + ExternalSecrets (Secrets Manager)
+    ├── azure/       # AGIC annotations + AKV CSI SecretProviderClass
+    └── gcp/         # GCE Ingress + ManagedCertificate + BackendConfig + ExternalSecrets
 ```
 
-Overlays apply with `kubectl apply -k DevOps/Cloud/k8s/overlays/aws` etc.
+Each overlay's `kustomization.yaml`:
+
+- bases on `../../base`,
+- patches the `Ingress` to set `ingressClassName` + cloud-specific annotations,
+- overrides the four image refs (`rhc-{datamgmt,ragmgmt,admin,customer}`) to
+  point at the respective cloud registry,
+- adds a per-cloud secret-store integration so the existing
+  `{datamgmt,ragmgmt}-secrets` Secret is populated from the cloud secret manager.
+
+Render and apply:
+
+```sh
+# Validate offline (no cluster needed)
+kubectl kustomize DevOps/Cloud/k8s/overlays/aws    > /tmp/rhc-aws.yaml
+kubectl kustomize DevOps/Cloud/k8s/overlays/azure  > /tmp/rhc-azure.yaml
+kubectl kustomize DevOps/Cloud/k8s/overlays/gcp    > /tmp/rhc-gcp.yaml
+
+# Apply
+kubectl apply -k DevOps/Cloud/k8s/overlays/aws     # or azure / gcp
+```
+
+Replace the `REPLACE_WITH_*` placeholders inside each overlay (registry,
+account ID, certificate ARN, tenant ID, etc.) before applying.
