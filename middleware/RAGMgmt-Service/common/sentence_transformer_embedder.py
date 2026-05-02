@@ -21,6 +21,13 @@ from __future__ import annotations
 import logging
 import threading
 
+from common.otel_genai import (
+    OP_EMBEDDING,
+    SYSTEM_HUGGINGFACE_ST,
+    set_gen_ai_request,
+    set_gen_ai_response,
+)
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -68,10 +75,23 @@ class SentenceTransformerEmbedder:
             return self._model
 
     def embed(self, text: str) -> list[float]:
+        # OTel GenAI semconv — request side.
+        set_gen_ai_request(
+            system=SYSTEM_HUGGINGFACE_ST,
+            operation=OP_EMBEDDING,
+            model=self._model_name,
+        )
         model = self._ensure_model()
         # encode() returns a numpy array; convert to plain floats for pgvector
         # text-form literal compatibility. normalize_embeddings=True puts the
         # output on the unit sphere — same property as StubEmbedder, so cosine
         # distance from pgvector behaves consistently across backends.
         vec = model.encode(text, normalize_embeddings=True, convert_to_numpy=True)
-        return [float(x) for x in vec.tolist()]
+        out = [float(x) for x in vec.tolist()]
+        # OTel GenAI semconv — response side. sentence-transformers doesn't
+        # report token counts directly; we approximate via word count.
+        set_gen_ai_response(
+            model=self._model_name,
+            input_tokens=len(text.split()),
+        )
+        return out

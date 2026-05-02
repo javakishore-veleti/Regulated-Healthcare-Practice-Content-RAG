@@ -22,6 +22,13 @@ import hashlib
 import math
 from typing import Protocol
 
+from common.otel_genai import (
+    OP_EMBEDDING,
+    SYSTEM_RHC_STUB,
+    set_gen_ai_request,
+    set_gen_ai_response,
+)
+
 EMBED_DIM = 384
 
 
@@ -65,4 +72,16 @@ class StubEmbedder:
     dim = EMBED_DIM
 
     def embed(self, text: str) -> list[float]:
-        return stub_embed(text)
+        # OTel GenAI semconv — even the stub gets attributes so dashboards
+        # work uniformly across embedder modes.
+        set_gen_ai_request(
+            system=SYSTEM_RHC_STUB,
+            operation=OP_EMBEDDING,
+            model=self.name,
+        )
+        v = stub_embed(text)
+        set_gen_ai_response(
+            model=self.name,
+            input_tokens=len(text.split()),
+        )
+        return v

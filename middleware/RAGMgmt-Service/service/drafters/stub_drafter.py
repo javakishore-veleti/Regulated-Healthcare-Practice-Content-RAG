@@ -2,6 +2,12 @@
 citation markers. Acts as the safe fallback when no API key is configured and as the
 behavior baseline against which real LLM drafters are compared."""
 
+from common.otel_genai import (
+    OP_TEXT_COMPLETION,
+    SYSTEM_RHC_STUB,
+    set_gen_ai_request,
+    set_gen_ai_response,
+)
 from common.tracing import traced
 
 
@@ -17,6 +23,13 @@ class StubDrafter:
         voice_profile: str | None,
         regenerate_hint: str | None = None,
     ) -> str:
+        # OTel GenAI semconv — even the stub gets attributes for consistency
+        # so backend dashboards work uniformly across drafter modes.
+        set_gen_ai_request(
+            system=SYSTEM_RHC_STUB,
+            operation=OP_TEXT_COMPLETION,
+            model=self.name,
+        )
         if not citations:
             return (
                 f"# {topic}\n\n"
@@ -50,4 +63,13 @@ class StubDrafter:
             "guardrails (banned-phrase / forbidden-claim detection) are separate "
             "follow-up slices._"
         )
-        return "\n".join(lines) + "\n"
+        body = "\n".join(lines) + "\n"
+        # OTel GenAI semconv — response side. No real model is invoked, so
+        # token counts approximate via word counts (caller-comparable units).
+        set_gen_ai_response(
+            model=self.name,
+            finish_reasons=["stop"],
+            input_tokens=len(topic.split()),
+            output_tokens=len(body.split()),
+        )
+        return body

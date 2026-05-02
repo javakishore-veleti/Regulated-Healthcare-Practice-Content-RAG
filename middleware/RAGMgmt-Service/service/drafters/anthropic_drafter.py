@@ -19,6 +19,12 @@ import logging
 
 from anthropic import AsyncAnthropic
 
+from common.otel_genai import (
+    OP_CHAT,
+    SYSTEM_ANTHROPIC,
+    set_gen_ai_request,
+    set_gen_ai_response,
+)
 from common.tracing import traced
 
 LOGGER = logging.getLogger(__name__)
@@ -101,6 +107,14 @@ class AnthropicDrafter:
         )
         user_text = "\n".join(user_text_parts)
 
+        # OTel GenAI semconv — request side.
+        set_gen_ai_request(
+            system=SYSTEM_ANTHROPIC,
+            operation=OP_CHAT,
+            model=self._model,
+            max_tokens=self._max_tokens,
+        )
+
         # System prompt is cached: it's stable across requests for a given compliance
         # policy version, so the Anthropic prompt cache amortizes its tokens across
         # many calls.
@@ -125,6 +139,13 @@ class AnthropicDrafter:
                 getattr(usage, "output_tokens", "?"),
                 getattr(usage, "cache_read_input_tokens", "?"),
                 getattr(usage, "cache_creation_input_tokens", "?"),
+            )
+            # OTel GenAI semconv — response side.
+            set_gen_ai_response(
+                model=getattr(message, "model", None) or self._model,
+                finish_reasons=[message.stop_reason] if getattr(message, "stop_reason", None) else None,
+                input_tokens=getattr(usage, "input_tokens", None),
+                output_tokens=getattr(usage, "output_tokens", None),
             )
         except Exception:  # noqa: BLE001
             pass

@@ -22,6 +22,12 @@ import asyncio
 import json
 import logging
 
+from common.otel_genai import (
+    OP_CHAT,
+    SYSTEM_AWS_BEDROCK,
+    set_gen_ai_request,
+    set_gen_ai_response,
+)
 from common.tracing import traced
 
 # Share the system prompt + citation formatter with AnthropicDrafter — both
@@ -93,6 +99,14 @@ class BedrockDrafter:
         )
         user_text = "\n".join(user_text_parts)
 
+        # OTel GenAI semconv — request side.
+        set_gen_ai_request(
+            system=SYSTEM_AWS_BEDROCK,
+            operation=OP_CHAT,
+            model=self._model_id,
+            max_tokens=self._max_tokens,
+        )
+
         # Bedrock-on-Anthropic request body. The `anthropic_version` is the
         # invariant Bedrock requires; bumping it without coordinating with the
         # Bedrock team is not safe.
@@ -121,6 +135,17 @@ class BedrockDrafter:
             usage.get("input_tokens"),
             usage.get("output_tokens"),
             payload.get("stop_reason"),
+        )
+
+        # OTel GenAI semconv — response side. Bedrock doesn't echo a response
+        # model identifier; we surface the request model_id so backends still
+        # see SOMETHING in gen_ai.response.model.
+        stop = payload.get("stop_reason")
+        set_gen_ai_response(
+            model=self._model_id,
+            finish_reasons=[stop] if stop else None,
+            input_tokens=usage.get("input_tokens"),
+            output_tokens=usage.get("output_tokens"),
         )
 
         content = payload.get("content") or []
