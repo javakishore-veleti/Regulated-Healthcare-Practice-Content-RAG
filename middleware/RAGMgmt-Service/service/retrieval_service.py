@@ -11,6 +11,7 @@ from common.embedding import stub_embed, vector_literal
 from common.return_codes import RC_OK
 from common.tracing import traced
 from dao.retrieval_dao import IRetrievalDao
+from service.rerank.reranker import IdentityReranker, IReranker
 
 
 class IRetrievalService(Protocol):
@@ -35,8 +36,13 @@ class RetrievalService:
     clinical evidence rather than whichever corpus dominates a single ranking.
     """
 
-    def __init__(self, retrieval_dao: IRetrievalDao) -> None:
+    def __init__(
+        self,
+        retrieval_dao: IRetrievalDao,
+        reranker: IReranker | None = None,
+    ) -> None:
         self._dao = retrieval_dao
+        self._reranker: IReranker = reranker or IdentityReranker()
 
     @traced("retrieval.hybrid_search")
     async def hybrid_search(
@@ -49,8 +55,7 @@ class RetrievalService:
             rrf_k=req.rrf_k,
             dataset_names=ds_filter,
         )
-        # Rerank stub — real cross-encoder swaps in here.
-        top = fused[: req.top_k]
+        top = self._reranker.rerank(req.query, fused, req.top_k)
 
         resp.respCtxData["hits"] = [_hit_to_payload(h) for h in top]
         resp.respCtxData["legs"] = {
@@ -63,6 +68,7 @@ class RetrievalService:
             "fused_candidate_count": len(fused),
             "returned": len(top),
         }
+        resp.respCtxData["reranker"] = self._reranker.name
         resp.respCtxData["embedder"] = "stub_sha256_dim384"
         return RC_OK
 
@@ -93,7 +99,7 @@ class RetrievalService:
                 rrf_k=req.rrf_k,
                 dataset_names=datasets,
             )
-            top = fused[: req.top_k_per_corpus]
+            top = self._reranker.rerank(req.query, fused, req.top_k_per_corpus)
             per_corpus.append(
                 {
                     "corpus_type": corpus_type,
@@ -109,6 +115,7 @@ class RetrievalService:
         resp.respCtxData["per_corpus"] = per_corpus
         resp.respCtxData["query"] = req.query
         resp.respCtxData["embedder"] = "stub_sha256_dim384"
+        resp.respCtxData["reranker"] = self._reranker.name
         resp.respCtxData["corpus_count"] = len(per_corpus)
         resp.respCtxData["total_hits"] = sum(len(c["hits"]) for c in per_corpus)
         return RC_OK
@@ -147,6 +154,10 @@ def _hit_to_payload(h: dict, corpus_type: str | None = None) -> dict:
         "lexical_rank": h["lexical_rank"],
         "dense_rank": h["dense_rank"],
     }
+    if "rerank_score" in h:
+        payload["rerank_score"] = h["rerank_score"]
+    if "rerank_overlap" in h:
+        payload["rerank_overlap"] = h["rerank_overlap"]
     if corpus_type is not None:
         payload["corpus_type"] = corpus_type
     return payload

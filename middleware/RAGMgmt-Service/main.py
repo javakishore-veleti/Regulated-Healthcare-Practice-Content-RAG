@@ -25,11 +25,38 @@ from service.faithfulness_service import FaithfulnessService
 from service.generation_service import GenerationService
 from service.guardrails.guardrails_service import GuardrailsService
 from service.patterns_service import RagPatternsService
+from service.rerank.reranker import (
+    IdentityReranker,
+    IReranker,
+    TokenOverlapReranker,
+)
 from service.retrieval_service import RetrievalService
 
 import logging
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _build_reranker(settings) -> IReranker:
+    """Pick a reranker per `RAG_RERANKER_BACKEND`. Defaults to token_overlap.
+
+    Adding a real cross-encoder backend means: implement IReranker, instantiate
+    here under a new branch, and add the dep to pyproject extras (gated so the
+    base image stays small).
+    """
+    backend = (settings.rag_reranker_backend or "token_overlap").lower()
+    if backend == "identity":
+        LOGGER.info("Using IdentityReranker (passthrough truncation)")
+        return IdentityReranker()
+    if backend == "token_overlap":
+        LOGGER.info(
+            "Using TokenOverlapReranker (alpha=%.2f)", settings.rag_reranker_alpha
+        )
+        return TokenOverlapReranker(alpha=settings.rag_reranker_alpha)
+    LOGGER.warning(
+        "Unknown RAG_RERANKER_BACKEND=%r — falling back to token_overlap", backend
+    )
+    return TokenOverlapReranker(alpha=settings.rag_reranker_alpha)
 
 
 def _build_drafter(settings) -> IDrafter:
@@ -71,7 +98,8 @@ async def lifespan(app: FastAPI):
     patterns_dao = PostgresRagPatternsDao(pool)
     retrieval_dao = PostgresRetrievalDao(vectors_pool)
 
-    retrieval_service = RetrievalService(retrieval_dao)
+    reranker = _build_reranker(settings)
+    retrieval_service = RetrievalService(retrieval_dao, reranker=reranker)
     guardrails_policy_path = Path(__file__).parent / "service" / "guardrails" / "policy.yaml"
     guardrails_service = GuardrailsService(policy_path=guardrails_policy_path)
     faithfulness_service = FaithfulnessService()

@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     # extra times. Capped low (1) for cost; real production tuning lives downstream.
     max_regenerate_attempts: int = 1
 
+    # Cross-encoder rerank — the third stage of Hybrid+Rerank. `token_overlap`
+    # is a pure-stdlib reranker that blends RRF with query/chunk token overlap.
+    # `identity` falls back to truncate-only (the pre-slice behavior). A real
+    # cross-encoder (e.g. ms-marco-MiniLM-L-6-v2) plugs in via the same
+    # `IReranker` interface — see service/rerank/reranker.py.
+    rag_reranker_backend: str = "token_overlap"
+    rag_reranker_alpha: float = 0.5
+
     @field_validator("db_password", "anthropic_api_key", mode="after")
     @classmethod
     def _resolve_credentials(cls, v: str | None) -> str | None:
