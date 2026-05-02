@@ -41,6 +41,7 @@ DAG_ID = "regulated_healthcare_dataset_ingest"
 DATASET_TYPE_REGULATOR_GUIDELINES = "regulator_guidelines"
 TASK_FETCH_REGULATOR_GUIDELINES = "fetch_regulator_guidelines"
 TASK_CHUNK_VIA_RAGMGMT = "chunk_via_ragmgmt"
+TASK_EMBED_VIA_PGVECTOR = "embed_via_pgvector"
 TASK_WRITE_STUB_MANIFEST = "write_stub_manifest"
 
 
@@ -134,6 +135,14 @@ def regulated_healthcare_dataset_ingest():
         module = _load_handler_module("chunk_via_ragmgmt.py")
         return module.chunk_fetched_pages(resolved)
 
+    @task(task_id=TASK_EMBED_VIA_PGVECTOR)
+    def embed_via_pgvector(resolved: dict, chunk_result: dict) -> dict:
+        # Modular per CLAUDE.md: embedding is its own task downstream of chunking.
+        # Reads chunked/*.json, embeds children with the stub embedder, upserts to
+        # pgvector. Gracefully no-ops when RHC_VECTORS_DB_DSN is unset.
+        module = _load_handler_module("embed_via_pgvector.py")
+        return module.embed_chunked_pages(resolved)
+
     @task(task_id=TASK_WRITE_STUB_MANIFEST)
     def write_stub_manifest(resolved: dict) -> dict:
         target = Path(resolved["destination_path"])
@@ -161,9 +170,10 @@ def regulated_healthcare_dataset_ingest():
     fetch_branch = fetch_regulator_guidelines(resolved)
     stub_branch = write_stub_manifest(resolved)
     chunk_branch = chunk_via_ragmgmt(resolved, fetch_branch)
+    embed_branch = embed_via_pgvector(resolved, chunk_branch)
 
     branch >> [fetch_branch, stub_branch]
-    fetch_branch >> chunk_branch
+    fetch_branch >> chunk_branch >> embed_branch
 
 
 regulated_healthcare_dataset_ingest()

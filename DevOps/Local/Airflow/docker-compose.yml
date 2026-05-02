@@ -23,6 +23,9 @@ services:
       # RAGMgmt-Service URL the chunk_via_ragmgmt DAG handler calls. Empty / unset
       # is allowed and causes the chunking task to gracefully no-op.
       RAGMGMT_BASE_URL: "${RAGMGMT_BASE_URL:-http://host.docker.internal:8002}"
+      # Postgres DSN for the rag_vectors DB the embed_via_pgvector handler writes to.
+      # Empty / unset is allowed and causes the embedding task to gracefully no-op.
+      RHC_VECTORS_DB_DSN: "${RHC_VECTORS_DB_DSN:-postgresql://rhc_admin:rhc_local_dev@host.docker.internal:5432/rag_vectors}"
     volumes:
       - ../../../middleware/Regulated-Healthcare-DAGS:/opt/airflow/dags:ro
       - ${HOME}/runtime_data:${HOME}/runtime_data:rw
