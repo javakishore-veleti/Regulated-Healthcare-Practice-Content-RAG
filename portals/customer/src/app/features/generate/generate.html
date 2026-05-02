@@ -86,16 +86,50 @@
           <article class="draft-body">
             @for (block of draftBlocks(); track $index) {
               @switch (block.type) {
-                @case ('h1') { <h2 class="draft-h1">{{ block.text }}</h2> }
-                @case ('h2') { <h3 class="draft-h2">{{ block.text }}</h3> }
-                @case ('h3') { <h4 class="draft-h3">{{ block.text }}</h4> }
-                @case ('blockquote') { <blockquote>{{ block.text }}</blockquote> }
+                @case ('h1') {
+                  <h2 class="draft-h1">
+                    <ng-container *ngTemplateOutlet="segs; context:{ $implicit: block.segments }"/>
+                  </h2>
+                }
+                @case ('h2') {
+                  <h3 class="draft-h2">
+                    <ng-container *ngTemplateOutlet="segs; context:{ $implicit: block.segments }"/>
+                  </h3>
+                }
+                @case ('h3') {
+                  <h4 class="draft-h3">
+                    <ng-container *ngTemplateOutlet="segs; context:{ $implicit: block.segments }"/>
+                  </h4>
+                }
+                @case ('blockquote') {
+                  <blockquote [class.unsupported]="block.unsupported" [title]="block.unsupported ? 'flagged as ungrounded by faithfulness scorer' : null">
+                    <ng-container *ngTemplateOutlet="segs; context:{ $implicit: block.segments }"/>
+                  </blockquote>
+                }
                 @case ('hr') { <hr /> }
-                @case ('meta') { <p class="draft-meta">{{ block.text }}</p> }
-                @default { <p>{{ block.text }}</p> }
+                @case ('meta') {
+                  <p class="draft-meta">
+                    <ng-container *ngTemplateOutlet="segs; context:{ $implicit: block.segments }"/>
+                  </p>
+                }
+                @default {
+                  <p [class.unsupported]="block.unsupported" [title]="block.unsupported ? 'flagged as ungrounded by faithfulness scorer' : null">
+                    <ng-container *ngTemplateOutlet="segs; context:{ $implicit: block.segments }"/>
+                  </p>
+                }
               }
             }
           </article>
+
+          <ng-template #segs let-segments>
+            @for (seg of segments; track $index) {
+              @if (seg.kind === 'banned') {
+                <span class="banned-mark" title="banned-phrase / forbidden-claim match">{{ seg.text }}</span>
+              } @else {
+                <span>{{ seg.text }}</span>
+              }
+            }
+          </ng-template>
         </mat-card-content>
       </mat-card>
 

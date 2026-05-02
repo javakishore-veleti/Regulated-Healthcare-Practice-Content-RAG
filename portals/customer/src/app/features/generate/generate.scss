@@ -309,6 +309,25 @@
     margin: 1rem 0;
   }
   p { margin: 0 0 0.6rem; }
+
+  /* Inline highlight: a substring matched a guardrail policy rule. */
+  .banned-mark {
+    background: var(--rhc-status-failure-bg);
+    color: var(--rhc-status-failure);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+    border-bottom: 2px solid var(--rhc-status-failure);
+    font-weight: 500;
+  }
+
+  /* Block-level: this paragraph / blockquote contains a sentence flagged
+     by the Self-RAG faithfulness scorer as ungrounded. Subtle left accent. */
+  p.unsupported,
+  blockquote.unsupported {
+    border-left: 3px solid var(--rhc-status-skipped);
+    background: color-mix(in srgb, var(--rhc-status-skipped) 8%, transparent);
+    padding-left: 0.7rem;
+  }
 }
 
 .citation-list {

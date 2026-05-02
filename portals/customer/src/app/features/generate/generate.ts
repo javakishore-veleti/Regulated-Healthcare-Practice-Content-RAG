@@ -23,6 +23,17 @@ interface DraftBlock {
   text: string;
 }
 
+export interface DraftSegment {
+  /** 'plain' = passthrough; 'banned' = guardrail violation match; */
+  kind: 'plain' | 'banned';
+  text: string;
+}
+
+export interface AnnotatedBlock extends DraftBlock {
+  unsupported: boolean;     // sentence appears in faithfulness preview as unsupported
+  segments: DraftSegment[]; // body text split on banned-phrase regex
+}
+
 @Component({
   selector: 'app-generate',
   standalone: true,
@@ -51,9 +62,12 @@ export class GenerateComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly draft = signal<GenerateDraftResponse | null>(null);
 
-  readonly draftBlocks = computed<DraftBlock[]>(() => {
+  readonly draftBlocks = computed<AnnotatedBlock[]>(() => {
     const md = this.draft()?.draft_markdown ?? '';
-    return parseDraftMarkdown(md);
+    const blocks = parseDraftMarkdown(md);
+    const bannedRe = buildBannedRegex(this.guardrailViolations());
+    const unsupportedSentences = collectUnsupportedSentences(this.faithfulness());
+    return blocks.map((b) => annotateBlock(b, bannedRe, unsupportedSentences));
   });
 
   readonly citations = computed<DraftCitation[]>(() => this.draft()?.citations ?? []);
@@ -170,4 +184,59 @@ function parseDraftMarkdown(md: string): DraftBlock[] {
     else blocks.push({ type: 'p', text: line });
   }
   return blocks;
+}
+
+function buildBannedRegex(violations: GuardrailViolation[]): RegExp | null {
+  if (!violations.length) return null;
+  // Dedupe matched_text values, escape regex chars, sort longest-first so the
+  // alternation prefers maximal matches.
+  const unique = Array.from(new Set(violations.map((v) => v.matched_text))).sort(
+    (a, b) => b.length - a.length
+  );
+  const pattern = unique
+    .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  if (!pattern) return null;
+  return new RegExp(`(${pattern})`, 'gi');
+}
+
+function collectUnsupportedSentences(f: FaithfulnessStatus | null): string[] {
+  if (!f?.per_sentence_preview) return [];
+  return f.per_sentence_preview
+    .filter((s) => !s.supported)
+    .map((s) => (s.sentence ?? '').trim())
+    .filter(Boolean);
+}
+
+function annotateBlock(
+  block: DraftBlock,
+  bannedRe: RegExp | null,
+  unsupportedSentences: string[]
+): AnnotatedBlock {
+  const text = block.text;
+  const unsupported = unsupportedSentences.some((s) => s && text.includes(s));
+  const segments = splitOnBanned(text, bannedRe);
+  return { ...block, unsupported, segments };
+}
+
+function splitOnBanned(text: string, bannedRe: RegExp | null): DraftSegment[] {
+  if (!bannedRe || !text) {
+    return [{ kind: 'plain', text }];
+  }
+  // Reset lastIndex on the cloned regex so successive calls don't drift.
+  const re = new RegExp(bannedRe.source, bannedRe.flags);
+  const out: DraftSegment[] = [];
+  let cursor = 0;
+  for (const m of text.matchAll(re)) {
+    const idx = m.index ?? 0;
+    if (idx > cursor) {
+      out.push({ kind: 'plain', text: text.slice(cursor, idx) });
+    }
+    out.push({ kind: 'banned', text: m[0] });
+    cursor = idx + m[0].length;
+  }
+  if (cursor < text.length) {
+    out.push({ kind: 'plain', text: text.slice(cursor) });
+  }
+  return out;
 }
