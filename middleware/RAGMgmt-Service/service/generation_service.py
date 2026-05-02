@@ -13,6 +13,7 @@ from common.dtos import (
 )
 from common.return_codes import RC_OK
 from common.tracing import traced
+from service.drafters.drafter import IDrafter
 from service.faithfulness_service import IFaithfulnessService
 from service.guardrails.guardrails_service import IGuardrailsService
 from service.retrieval_service import IRetrievalService
@@ -41,10 +42,12 @@ class GenerationService:
     def __init__(
         self,
         retrieval_service: IRetrievalService,
+        drafter: IDrafter,
         guardrails_service: IGuardrailsService | None = None,
         faithfulness_service: IFaithfulnessService | None = None,
     ) -> None:
         self._retrieval = retrieval_service
+        self._drafter = drafter
         self._guardrails = guardrails_service
         self._faithfulness = faithfulness_service
 
@@ -67,8 +70,12 @@ class GenerationService:
         ctx = resp.respCtxData
         ctx["topic"] = req.topic
         ctx["voice_profile"] = req.voice_profile or "default"
-        ctx["generator"] = "stub_compose_with_citations"
-        ctx["draft_markdown"] = self._compose_stub_draft(req.topic, hits)
+        ctx["generator"] = self._drafter.name
+        ctx["draft_markdown"] = await self._drafter.compose_draft(
+            topic=req.topic,
+            citations=hits,
+            voice_profile=req.voice_profile,
+        )
         ctx["citations"] = [
             {
                 "marker": f"[{i}]",
@@ -154,40 +161,3 @@ class GenerationService:
                 "reason": "Guardrails service not configured for this deployment.",
             }
         return RC_OK
-
-    @staticmethod
-    def _compose_stub_draft(topic: str, hits: list[dict]) -> str:
-        if not hits:
-            return (
-                f"# {topic}\n\n"
-                "_No grounded passages were retrieved for this topic. The stub "
-                "generator will not fabricate content; expand the corpus or refine "
-                "the topic and retry._\n"
-            )
-
-        lines: list[str] = [f"# {topic}", ""]
-        lines.append(
-            "Drawing on the indexed Project A corpus, the following passages "
-            "ground this topic. Each citation marker links to the source row in "
-            "`child_chunk_embeddings`. No paraphrasing has been performed — the "
-            "stub generator emits retrieved children verbatim until a "
-            "compliance-checked LLM drafter replaces it.",
-        )
-        lines.append("")
-        for i, h in enumerate(hits, start=1):
-            child_text = (h.get("child_text") or "").strip()
-            ds = h.get("dataset_name")
-            page = h.get("page_index")
-            parent = h.get("parent_id")
-            lines.append(f"## Source [{i}]")
-            lines.append(f"_{ds} · page {page} · {parent}_")
-            lines.append("")
-            lines.append(f"> {child_text}")
-            lines.append("")
-        lines.append("---")
-        lines.append(
-            "_Stub-generated draft. Self-RAG faithfulness scoring + output "
-            "guardrails (banned-phrase / forbidden-claim detection) are separate "
-            "follow-up slices._"
-        )
-        return "\n".join(lines) + "\n"

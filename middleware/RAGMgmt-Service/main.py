@@ -18,6 +18,7 @@ from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
 from dao.retrieval_dao import PostgresRetrievalDao
 from service.chunking_service import ChunkingService
+from service.drafters.stub_drafter import StubDrafter
 from service.faithfulness_service import FaithfulnessService
 from service.generation_service import GenerationService
 from service.guardrails.guardrails_service import GuardrailsService
@@ -42,6 +43,7 @@ async def lifespan(app: FastAPI):
     guardrails_policy_path = Path(__file__).parent / "service" / "guardrails" / "policy.yaml"
     guardrails_service = GuardrailsService(policy_path=guardrails_policy_path)
     faithfulness_service = FaithfulnessService()
+    drafter = StubDrafter()
 
     app.state.patterns_service = RagPatternsService(patterns_dao)
     app.state.chunking_service = ChunkingService()
@@ -50,6 +52,7 @@ async def lifespan(app: FastAPI):
     app.state.faithfulness_service = faithfulness_service
     app.state.generation_service = GenerationService(
         retrieval_service=retrieval_service,
+        drafter=drafter,
         guardrails_service=guardrails_service,
         faithfulness_service=faithfulness_service,
     )
