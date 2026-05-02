@@ -3,13 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-from api import datasets_router, endpoints_router, ingest_router
+from api import config_router, datasets_router, endpoints_router, ingest_router
 from common.db import build_pool
 from common.otel import init_otel
 from common.settings import get_settings
 from dao.datasets_dao import PostgresDataSetsDao
 from dao.endpoints_dao import PostgresEndpointsDao
 from dao.ingest_dao import PostgresIngestDao
+from service.config_service import ConfigService
 from service.dag_trigger.airflow_dag_trigger import AirflowDagTrigger
 from service.datasets_service import DataSetsService
 from service.endpoints_service import EndpointsService
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
 
     app.state.endpoints_service = EndpointsService(endpoints_dao)
     app.state.datasets_service = DataSetsService(datasets_dao)
+    app.state.config_service = ConfigService(settings)
     app.state.ingest_service = IngestService(
         datasets_dao=datasets_dao,
         endpoints_dao=endpoints_dao,
@@ -74,6 +76,7 @@ FastAPIInstrumentor.instrument_app(app)
 app.include_router(endpoints_router.router)
 app.include_router(datasets_router.router)
 app.include_router(ingest_router.router)
+app.include_router(config_router.router)
 
 
 @app.get("/health", tags=["health"], summary="Liveness probe")

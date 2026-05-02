@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     airflow_password: str = "admin"
     airflow_poll_interval_secs: float = 1.5
     airflow_timeout_secs: float = 180.0
+    # Browser-facing Airflow UI URL surfaced by /api/config to the admin portal.
+    # Distinct from airflow_base_url because the FastAPI service may reach Airflow via
+    # an internal service-mesh URL while the browser must use the ingress URL.
+    # Falls back to airflow_base_url when unset.
+    airflow_ui_base: str | None = None
+
+    @property
+    def effective_airflow_ui_base(self) -> str:
+        return self.airflow_ui_base or self.airflow_base_url or ""
 
     @property
     def db_conninfo(self) -> str:

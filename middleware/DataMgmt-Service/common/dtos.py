@@ -55,3 +55,11 @@ class ListIngestRunsReqDTO(_BaseDTO):
 
 class ListIngestRunsRespDTO(_BaseDTO):
     respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class GetAppConfigReqDTO(_BaseDTO):
+    """No filters; returns the runtime config the admin portal needs at bootstrap."""
+
+
+class GetAppConfigRespDTO(_BaseDTO):
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
