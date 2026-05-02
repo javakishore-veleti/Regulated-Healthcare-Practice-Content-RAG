@@ -1,1 +1,19 @@
 This project is hands-on implementation of "RAG_Mastery_Projects.xlsx" file located one folder above of current folder and especially "1_Project_A_Healthcare_Content" worksheet. Also README.md partially updated we need to develop a RAG based solution considering the dataset(s) described in the Excel. We are not download those datasets manually so we are going ot have middleware folder for API and microservices and airflow dags, portals/admin portals/customer for Angular based UI code professionally I dont like black or gray colors wanted very professionally look feel. In the admin we will have Administration top level menu bal with Sidebar Data Management as one of the left nav bar underneeath Initial DataSet and right hand side accordions of status of each datasets and each dataset can be downlaoded to localhost or AWS S3 or Azure Blob Storage or GCP Blob storage maybe have multiple tabs instead of multiple accordions for intial datasets if tabs are too much then have them as left nav bar under the Data Management Initial Dataset sub-level you decide. We will have DevOps/Local/docker-all-up.sh all-down.sh all-status.sh and DevOops/Local/Postgres Local/Airflow Local/Observability/Grafana Prometheus Jaeger (if appliable for Python FastAPI and Apache Airflow workflows). We will have Apache Airflows through middleware/DataMgmt-Service API services build on FastAPI which internally invokes Apache Airflow and maintains a table system_datasets table postgres dataset type, dataset name and system_datasets_ingest child table with where it is ingested location, ingested_start_date, end_date ingest_status, last_ingest_dt, configs_json a json to store all the configs like AWS credentails name used etc. For AWS and Azure and GCP credentaisl readit from .env file locally but when deployed in AWS Kubernetes or Azure Kubernetes or GCP kubernetes use the cloud provider respective key vault solutions. We also have domain specific middleware API services as described in the Excel sheet tab as I mentioned above. We will have functoinal API end points for RAG Chunking that supports design patterns and we will have admin portlal another main menu bar it parallel to administration called RAG Management underwich left nav bar will be Patterns and sub level will be each pattern define the worksheet of the Excel sheet and we might use same dataset or different for each design pattern and store the target solution either in VecotrStore of Postgres or any other VectorDBs mentioned in the Excel and we will have open source versions of such vecotr dbs in DevOps/Local/VectorDBs/PineCone or Waeveat or any other open source vector DB or any api endpoints
+
+---
+
+## Additional notes (chronological follow-ups)
+
+Add in CLAUDE.MD not to use claude name for checkins git commits and use my github id
+
+ensure you use images that already in this laptop
+
+please dont mention new image ids to prevent the unneceeary download of some type
+
+ensure DAG files are in the middleware understand the folder Regulated-Healthcare-DAGS and dont define dag names technically I understand some of them needs to be technical so be contnaully ensure the RAG names are functional names contextual project names as much as possible
+
+dont develop monolithic DAGs instead develop modular DAGs and also reusable to download either to localhost or AWS or Azure or GCP blob storages
+
+and for localhost use user_home/runtime_data/RAG_Projects/Regulated-Healthcare-RAG/DataSets/<DataSetName-NoSpace-NoSplChars>/Latest_Ingest
+
+if in localhost dataset already downloaded and if we invoke the ingest wf again dotn download again instead let the RAG return immediately
