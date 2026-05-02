@@ -3,8 +3,9 @@ kind: Kustomization
 
 namespace: rhc-rag
 
-commonLabels:
-  app.kubernetes.io/part-of: regulated-healthcare-rag
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: regulated-healthcare-rag
 
 resources:
   - namespace.yaml
