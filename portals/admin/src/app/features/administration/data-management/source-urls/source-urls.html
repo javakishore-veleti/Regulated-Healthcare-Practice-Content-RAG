@@ -19,6 +19,9 @@
       >
         @for (d of datasets(); track d.dataset_name) {
           <mat-option [value]="d.dataset_name">
+            <span [class]="corpusChipClassFor(d.dataset_name)">
+              {{ corpusLabelFor(d.dataset_name) }}
+            </span>
             {{ d.dataset_name }}
             <span class="opt-type">— {{ d.dataset_type }}</span>
           </mat-option>
@@ -44,7 +47,12 @@
   @if (selectedDataset(); as ds) {
     <mat-card class="urls-card">
       <mat-card-header>
-        <mat-card-title>{{ ds }}</mat-card-title>
+        <mat-card-title>
+          <span [class]="corpusChipClassFor(ds)" [title]="'corpus: ' + corpusLabelFor(ds)">
+            {{ corpusLabelFor(ds) }}
+          </span>
+          {{ ds }}
+        </mat-card-title>
         <mat-card-subtitle>
           {{ urls().length }} URL{{ urls().length === 1 ? '' : 's' }}
           · {{ fetchableUrls().length }} active (will be fetched on next ingest)

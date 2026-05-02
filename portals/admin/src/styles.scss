@@ -56,3 +56,46 @@ body {
   height: 100%;
   font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
+
+// ── Three-corpora chips (admin-side, mirrors customer portal) ─────────────
+// Same color taxonomy as the customer portal so a chip in the admin UI is
+// instantly recognizable across the two portals: deep teal for regulator
+// (the authoritative voice), cyan for clinical evidence, warm amber for
+// practice voice (the brand layer).
+.corpus-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.corpus-regulator {
+  background: color-mix(in srgb, var(--rhc-top-nav-bg) 14%, transparent);
+  color: var(--rhc-top-nav-bg);
+  border-color: color-mix(in srgb, var(--rhc-top-nav-bg) 35%, transparent);
+}
+
+.corpus-clinical-evidence {
+  background: color-mix(in srgb, #0089A7 12%, transparent);
+  color: #0089A7;
+  border-color: color-mix(in srgb, #0089A7 32%, transparent);
+}
+
+.corpus-practice-voice {
+  background: color-mix(in srgb, var(--rhc-top-nav-active) 18%, transparent);
+  color: color-mix(in srgb, var(--rhc-top-nav-active) 60%, #000 40%);
+  border-color: color-mix(in srgb, var(--rhc-top-nav-active) 50%, transparent);
+}
+
+.corpus-unknown {
+  background: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface-variant);
+  border-color: var(--mat-sys-outline-variant);
+}

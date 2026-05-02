@@ -15,6 +15,12 @@ import { MatTableModule } from '@angular/material/table';
 
 import { DatamgmtApiService } from '../../../../core/api/datamgmt-api.service';
 import { DatasetRow, SourceUrlRow } from '../../../../core/api/api.types';
+import {
+  CorpusType,
+  corpusChipClass,
+  corpusForDataset,
+  corpusLabel,
+} from '../../../../core/corpus-types';
 
 interface NewUrlForm {
   url: string;
@@ -66,6 +72,22 @@ export class SourceUrlsComponent implements OnInit {
   readonly columns = ['position', 'label', 'url', 'is_active', 'actions'];
 
   readonly fetchableUrls = computed(() => this.urls().filter((u) => u.is_active));
+
+  /** Three-corpora classification of the selected dataset, derived locally
+   *  from the dataset_name (mirrors the customer portal). null when the
+   *  dataset_name is unmapped — surfaces in the UI as an "unmapped" chip
+   *  rather than silently hiding the dataset's corpus role. */
+  readonly selectedCorpus = computed<CorpusType | null>(() =>
+    corpusForDataset(this.selectedDataset())
+  );
+
+  corpusChipClassFor(name: string | null | undefined): string {
+    return corpusChipClass(corpusForDataset(name));
+  }
+
+  corpusLabelFor(name: string | null | undefined): string {
+    return corpusLabel(corpusForDataset(name));
+  }
 
   ngOnInit(): void {
     this.refreshDatasets();
