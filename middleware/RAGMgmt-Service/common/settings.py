@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from common.secrets import resolve_secret
 
 
 class Settings(BaseSettings):
@@ -34,6 +37,14 @@ class Settings(BaseSettings):
     # active drafter supports regeneration, recompose with a hint up to this many
     # extra times. Capped low (1) for cost; real production tuning lives downstream.
     max_regenerate_attempts: int = 1
+
+    @field_validator("db_password", "anthropic_api_key", mode="after")
+    @classmethod
+    def _resolve_credentials(cls, v: str | None) -> str | None:
+        # Sensitive fields can carry secret-manager references like
+        # `aws-sm://...`, `azure-kv://...`, `gcp-sm://...`. Local dev passes
+        # through literal values unchanged.
+        return resolve_secret(v)
 
     @property
     def db_conninfo(self) -> str:

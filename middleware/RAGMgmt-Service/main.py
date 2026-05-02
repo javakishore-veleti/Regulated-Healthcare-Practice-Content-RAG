@@ -14,7 +14,6 @@ from api import (
 )
 from common.db import build_pool, build_vectors_pool
 from common.otel import init_otel
-from common.secrets import resolve_secret
 from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
 from dao.retrieval_dao import PostgresRetrievalDao
@@ -36,12 +35,13 @@ LOGGER = logging.getLogger(__name__)
 def _build_drafter(settings) -> IDrafter:
     """Pick a drafter per `LLM_DRAFTER`. `auto` uses Anthropic when the key is set.
 
-    `ANTHROPIC_API_KEY` may be a literal value (local dev) or a cloud secret
-    reference like `aws-sm://...`, `azure-kv://...`, `gcp-sm://...`. Resolution
-    happens here at startup, so downstream code only ever sees plaintext.
+    `ANTHROPIC_API_KEY` is already resolved at Settings load time — literal
+    values pass through; `aws-sm://...`, `azure-kv://...`, `gcp-sm://...`
+    references are resolved against the appropriate cloud secret manager.
+    See common/secrets.py and the field_validator on Settings.
     """
     mode = (settings.llm_drafter or "auto").lower()
-    api_key = resolve_secret(settings.anthropic_api_key)
+    api_key = settings.anthropic_api_key
     if mode in ("anthropic", "auto") and api_key:
         LOGGER.info("Using AnthropicDrafter with model=%s", settings.anthropic_model)
         return AnthropicDrafter(
