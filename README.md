@@ -44,8 +44,9 @@ It's a working implementation of the four Project A patterns from [`RAG_Mastery_
 10. [Configuration](#configuration)
 11. [Troubleshooting](#troubleshooting)
 12. [Project status](#project-status)
-13. [Observability commitments](#observability-commitments)
-14. [License](#license)
+13. [Operator how-to guides](#operator-how-to-guides)
+14. [Observability commitments](#observability-commitments)
+15. [License](#license)
 
 ---
 
@@ -534,6 +535,20 @@ Both images run as non-root (`uid 10001`), expose `/health`, and read every secr
 | Cloud secret-manager integration | ✅ AWS Secrets Manager / Azure Key Vault / GCP Secret Manager via secret-ref prefixes |
 | k8s manifests + per-cloud overlays | ✅ `DevOps/Cloud/k8s/{base,overlays/{aws,azure,gcp}}` |
 | Observability stack (Grafana / Prometheus / Jaeger) | ⏳ images not cached locally |
+
+---
+
+## Operator how-to guides
+
+Short, focused recipes for the most common operator tasks. Index at [`docs/operator-howto/`](./docs/operator-howto/).
+
+| Guide | When you'd use it |
+|---|---|
+| [Switching to Bedrock for drafting](./docs/operator-howto/switching-to-bedrock.md) | Production deploy on AWS; Claude served via Bedrock instead of the direct Anthropic API |
+| [Enabling the cross-encoder reranker](./docs/operator-howto/enabling-cross-encoder.md) | Retrieval quality matters; you're willing to pay the ~2 GB dep cost |
+| [Enabling the real embedder](./docs/operator-howto/enabling-real-embedder.md) | Semantic embeddings instead of the SHA-256 stub — improves dense retrieval quality |
+| [Enabling Langfuse observability](./docs/operator-howto/enabling-langfuse.md) | Per-call traces of retrieval + generation + faithfulness for review |
+| [Adding a new dataset (curated URLs)](./docs/operator-howto/adding-a-new-dataset.md) | A new corpus URL list / PubMed search needs to land in the catalog without a code change |
 
 ---
 
