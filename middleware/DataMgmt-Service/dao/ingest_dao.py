@@ -101,17 +101,21 @@ class PostgresIngestDao:
                 await cur.execute(
                     """
                     UPDATE system_datasets_ingest
-                    SET ingest_status  = %s,
-                        ingest_end_dt  = NOW(),
-                        last_ingest_dt = NOW(),
-                        error_text     = %s,
-                        updated_dt     = NOW()
+                    SET ingest_status   = %s,
+                        ingest_end_dt   = NOW(),
+                        last_ingest_dt  = NOW(),
+                        error_text      = %s,
+                        workflow_dag_id = %s,
+                        workflow_run_id = %s,
+                        updated_dt      = NOW()
                     WHERE id = %s
                     RETURNING ingest_end_dt
                     """,
                     (
                         ctx["ingest_status"],
                         ctx.get("error_text"),
+                        ctx.get("workflow_dag_id"),
+                        ctx.get("workflow_run_id"),
                         ctx["ingest_id"],
                     ),
                 )
@@ -142,7 +146,9 @@ class PostgresIngestDao:
                         sdi.ingest_end_dt,
                         sdi.last_ingest_dt,
                         sdi.error_text,
-                        sdi.configs_json
+                        sdi.configs_json,
+                        sdi.workflow_dag_id,
+                        sdi.workflow_run_id
                     FROM system_datasets_ingest sdi
                     JOIN system_datasets sd ON sd.id = sdi.system_dataset_id
                     JOIN endpoints        e  ON e.id  = sdi.endpoint_id
@@ -175,6 +181,8 @@ class PostgresIngestDao:
                 "last_ingest_dt": r[10].isoformat() if r[10] else None,
                 "error_text": r[11],
                 "configs_json": r[12],
+                "workflow_dag_id": r[13],
+                "workflow_run_id": r[14],
             }
             for r in rows
         ]
