@@ -14,6 +14,7 @@ from api import (
 )
 from common.db import build_pool, build_vectors_pool
 from common.otel import init_otel
+from common.secrets import resolve_secret
 from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
 from dao.retrieval_dao import PostgresRetrievalDao
@@ -33,18 +34,25 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _build_drafter(settings) -> IDrafter:
-    """Pick a drafter per `LLM_DRAFTER`. `auto` uses Anthropic when the key is set."""
+    """Pick a drafter per `LLM_DRAFTER`. `auto` uses Anthropic when the key is set.
+
+    `ANTHROPIC_API_KEY` may be a literal value (local dev) or a cloud secret
+    reference like `aws-sm://...`, `azure-kv://...`, `gcp-sm://...`. Resolution
+    happens here at startup, so downstream code only ever sees plaintext.
+    """
     mode = (settings.llm_drafter or "auto").lower()
-    if mode in ("anthropic", "auto") and settings.anthropic_api_key:
+    api_key = resolve_secret(settings.anthropic_api_key)
+    if mode in ("anthropic", "auto") and api_key:
         LOGGER.info("Using AnthropicDrafter with model=%s", settings.anthropic_model)
         return AnthropicDrafter(
-            api_key=settings.anthropic_api_key,
+            api_key=api_key,
             model=settings.anthropic_model,
             max_tokens=settings.anthropic_max_tokens,
         )
     if mode == "anthropic":
         LOGGER.warning(
-            "LLM_DRAFTER=anthropic but ANTHROPIC_API_KEY is unset; falling back to stub."
+            "LLM_DRAFTER=anthropic but ANTHROPIC_API_KEY is unset / unresolved; "
+            "falling back to stub."
         )
     LOGGER.info("Using StubDrafter (deterministic, no LLM call)")
     return StubDrafter()
