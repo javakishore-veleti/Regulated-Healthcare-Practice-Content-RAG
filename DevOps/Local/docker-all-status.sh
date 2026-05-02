@@ -6,7 +6,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 services=(
   "Postgres"
-  # "Airflow"
+  "Airflow"
   # "Observability/Prometheus"
   # "Observability/Grafana"
   # "Observability/Jaeger"

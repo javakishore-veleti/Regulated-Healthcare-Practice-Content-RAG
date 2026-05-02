@@ -1,0 +1,42 @@
+services:
+  rhc-airflow:
+    image: apache/airflow:2.10.0-python3.12
+    container_name: rhc-airflow
+    user: "${AIRFLOW_UID:-50000}:0"
+    environment:
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://rhc_admin:rhc_local_dev@host.docker.internal:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://rhc_admin:rhc_local_dev@host.docker.internal:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+      AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8080
+      AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR: "False"
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      # Project-A: localhost data root. Bind-mounted at the same absolute path so
+      # Path.home() resolves identically inside the container and on the host.
+      HOME: "${HOME}"
+      RHC_DATA_ROOT: "${HOME}"
+    volumes:
+      - ../../../middleware/Regulated-Healthcare-DAGS:/opt/airflow/dags:ro
+      - ${HOME}/runtime_data:${HOME}/runtime_data:rw
+      - rhc-airflow-logs:/opt/airflow/logs
+    ports:
+      - "${AIRFLOW_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: standalone
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 8s
+      retries: 30
+      start_period: 90s
+    restart: unless-stopped
+
+volumes:
+  rhc-airflow-logs:
+    name: rhc-airflow-logs

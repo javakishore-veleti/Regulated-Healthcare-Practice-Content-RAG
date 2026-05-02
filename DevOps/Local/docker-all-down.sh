@@ -22,7 +22,7 @@ services=(
   # "Observability/Jaeger"
   # "Observability/Grafana"
   # "Observability/Prometheus"
-  # "Airflow"
+  "Airflow"
   "Postgres"
 )
 

@@ -7,7 +7,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 services=(
   "Postgres"
-  # "Airflow"                  # TODO: compose not built yet
+  "Airflow"
   # "Observability/Prometheus" # TODO: image not cached locally
   # "Observability/Grafana"    # TODO: image not cached locally
   # "Observability/Jaeger"     # TODO: image not cached locally
