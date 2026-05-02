@@ -79,6 +79,7 @@ async def lifespan(app: FastAPI):
         drafter=drafter,
         guardrails_service=guardrails_service,
         faithfulness_service=faithfulness_service,
+        max_regenerate_attempts=settings.max_regenerate_attempts,
     )
 
     try:

@@ -45,11 +45,13 @@ class GenerationService:
         drafter: IDrafter,
         guardrails_service: IGuardrailsService | None = None,
         faithfulness_service: IFaithfulnessService | None = None,
+        max_regenerate_attempts: int = 1,
     ) -> None:
         self._retrieval = retrieval_service
         self._drafter = drafter
         self._guardrails = guardrails_service
         self._faithfulness = faithfulness_service
+        self._max_regenerate_attempts = max(0, max_regenerate_attempts)
 
     @traced("generation.grounded_draft")
     async def generate_grounded_draft(
@@ -71,11 +73,17 @@ class GenerationService:
         ctx["topic"] = req.topic
         ctx["voice_profile"] = req.voice_profile or "default"
         ctx["generator"] = self._drafter.name
-        ctx["draft_markdown"] = await self._drafter.compose_draft(
+
+        # First compose; subsequent attempts run inside the faithfulness block below
+        # if regeneration is supported and a hint can be derived.
+        draft = await self._drafter.compose_draft(
             topic=req.topic,
             citations=hits,
             voice_profile=req.voice_profile,
         )
+        ctx["draft_markdown"] = draft
+        ctx["draft_attempts"] = 1
+        ctx["regeneration_history"] = []
         ctx["citations"] = [
             {
                 "marker": f"[{i}]",
@@ -102,33 +110,44 @@ class GenerationService:
                 )
                 for c in ctx["citations"]
             ]
-            f_req = CheckFaithfulnessReqDTO(
-                text=ctx["draft_markdown"], citations=citation_models
+            faithfulness_summary = await self._score_faithfulness(
+                ctx["draft_markdown"], citation_models
             )
-            f_resp = CheckFaithfulnessRespDTO()
-            f_rc = await self._faithfulness.check_text(f_req, f_resp)
-            if f_rc == RC_OK:
-                f = f_resp.respCtxData
-                ctx["faithfulness"] = {
-                    "status": "ok",
-                    "scorer": f.get("scorer"),
-                    "score": f.get("score"),
-                    "passed": f.get("passed"),
-                    "overall_threshold": f.get("overall_threshold"),
-                    "per_sentence_threshold": f.get("per_sentence_threshold"),
-                    "sentence_count": f.get("sentence_count"),
-                    "supported_count": f.get("supported_count"),
-                    "evidence_free_count": f.get("evidence_free_count"),
-                    "regenerate_recommended": f.get("regenerate_recommended"),
-                    # Trim per-sentence detail to keep the response light; full
-                    # detail is available via /faithfulness/check.
-                    "per_sentence_preview": (f.get("per_sentence") or [])[:6],
-                }
-            else:
-                ctx["faithfulness"] = {
-                    "status": "error",
-                    "reason": f"faithfulness check returned rc={f_rc}",
-                }
+
+            # Self-RAG regenerate loop: if the active drafter supports regeneration
+            # and the score is below threshold, recompose with a hint listing
+            # unsupported sentences. Capped by max_regenerate_attempts.
+            attempts_used = 0
+            while (
+                faithfulness_summary.get("status") == "ok"
+                and not faithfulness_summary.get("passed")
+                and self._drafter.supports_regeneration
+                and attempts_used < self._max_regenerate_attempts
+            ):
+                hint = _build_regenerate_hint(faithfulness_summary)
+                ctx["regeneration_history"].append(
+                    {
+                        "attempt": attempts_used + 1,
+                        "score": faithfulness_summary.get("score"),
+                        "passed": faithfulness_summary.get("passed"),
+                        "hint": hint,
+                    }
+                )
+                attempts_used += 1
+                ctx["draft_attempts"] = attempts_used + 1
+
+                draft = await self._drafter.compose_draft(
+                    topic=req.topic,
+                    citations=hits,
+                    voice_profile=req.voice_profile,
+                    regenerate_hint=hint,
+                )
+                ctx["draft_markdown"] = draft
+                faithfulness_summary = await self._score_faithfulness(
+                    draft, citation_models
+                )
+
+            ctx["faithfulness"] = faithfulness_summary
         else:
             ctx["faithfulness"] = {
                 "status": "skipped",
@@ -161,3 +180,52 @@ class GenerationService:
                 "reason": "Guardrails service not configured for this deployment.",
             }
         return RC_OK
+
+    async def _score_faithfulness(
+        self, draft: str, citations: list[CitationSnippet]
+    ) -> dict:
+        f_req = CheckFaithfulnessReqDTO(text=draft, citations=citations)
+        f_resp = CheckFaithfulnessRespDTO()
+        f_rc = await self._faithfulness.check_text(f_req, f_resp)
+        if f_rc != RC_OK:
+            return {
+                "status": "error",
+                "reason": f"faithfulness check returned rc={f_rc}",
+            }
+        f = f_resp.respCtxData
+        return {
+            "status": "ok",
+            "scorer": f.get("scorer"),
+            "score": f.get("score"),
+            "passed": f.get("passed"),
+            "overall_threshold": f.get("overall_threshold"),
+            "per_sentence_threshold": f.get("per_sentence_threshold"),
+            "sentence_count": f.get("sentence_count"),
+            "supported_count": f.get("supported_count"),
+            "evidence_free_count": f.get("evidence_free_count"),
+            "regenerate_recommended": f.get("regenerate_recommended"),
+            "per_sentence_preview": (f.get("per_sentence") or [])[:6],
+        }
+
+
+def _build_regenerate_hint(faithfulness_summary: dict) -> str:
+    """Compose a short, actionable hint for the LLM drafter from a failed
+    faithfulness check. The drafter receives this as `regenerate_hint`."""
+    score = faithfulness_summary.get("score")
+    threshold = faithfulness_summary.get("overall_threshold")
+    preview = faithfulness_summary.get("per_sentence_preview") or []
+    unsupported = [p for p in preview if not p.get("supported")]
+
+    lines = [
+        f"The previous draft scored faithfulness {score} (below threshold {threshold}).",
+        "Rewrite the draft using ONLY the cited sources. Omit any claim you cannot",
+        "directly ground in a citation. Each substantive sentence must cite at least",
+        "one [N] source.",
+    ]
+    if unsupported:
+        lines.append("")
+        lines.append("Sentences flagged as ungrounded in the previous draft:")
+        for u in unsupported[:5]:
+            sent = (u.get("sentence") or "").strip()
+            lines.append(f'- "{sent[:140]}"')
+    return "\n".join(lines)

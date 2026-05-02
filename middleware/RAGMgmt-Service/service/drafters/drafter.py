@@ -11,6 +11,11 @@ class IDrafter(Protocol):
     """
 
     name: str
+    # Whether re-running with a `regenerate_hint` can plausibly produce a different
+    # draft. Stub drafters are deterministic — looping is pointless and would only
+    # waste cycles. Real-LLM drafters return True so the Self-RAG regenerate loop
+    # can retry on faithfulness failure.
+    supports_regeneration: bool
 
     async def compose_draft(
         self,

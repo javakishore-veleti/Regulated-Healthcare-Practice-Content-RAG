@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-opus-4-7"
     anthropic_max_tokens: int = 1500
 
+    # Self-RAG regenerate loop: when a draft fails the faithfulness threshold AND the
+    # active drafter supports regeneration, recompose with a hint up to this many
+    # extra times. Capped low (1) for cost; real production tuning lives downstream.
+    max_regenerate_attempts: int = 1
+
     @property
     def db_conninfo(self) -> str:
         return self._conninfo(self.db_name)
