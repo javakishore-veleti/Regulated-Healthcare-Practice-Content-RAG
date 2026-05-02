@@ -103,22 +103,24 @@ Path-based proxy means the SPA never knows which backend serves which route — 
 ```mermaid
 flowchart TB
     subgraph Patterns["Project A patterns (1_Project_A_Healthcare_Content)"]
-        P1["Hybrid+Rerank<br/>BM25 + pgvector + RRF"]
+        P1["Hybrid+Rerank<br/>BM25 + pgvector + RRF<br/>+ TokenOverlap (default)<br/>or CrossEncoder (opt-in)"]
         P2["Parent-Child Chunking<br/>parent: ≤1500 chars<br/>child: ≤256 chars"]
         P3["Self-RAG Loop<br/>token-overlap scorer<br/>regenerate < threshold"]
         P4["Output Guardrails<br/>30-rule AHPRA policy<br/>banned-phrase regex"]
     end
 
-    Generate(["POST /generate"]) --> P2
+    Generate(["POST /generate<br/>(three-corpora default)"]) --> ThreeC
+    ThreeC["Three-corpora retrieval<br/>regulator + evidence + voice"] --> P2
     P2 --> P1
-    P1 --> Anthropic["Claude Opus 4.7<br/>(prompt-cached)"]
-    Anthropic --> P3
-    P3 -->|"if score < 0.7"| Anthropic
+    P1 --> Drafter["Claude (Anthropic API or Bedrock)<br/>or StubDrafter (no key)"]
+    Drafter --> P3
+    P3 -->|"if score < 0.7"| Drafter
     P3 --> P4
-    P4 --> Out(["draft + citations<br/>+ violations<br/>+ faithfulness score"])
+    P4 --> Out(["draft + citations<br/>+ violations<br/>+ faithfulness score<br/>+ corpora_present/missing"])
+    P4 -.->|"trace per call<br/>(disabled by default)"| Langfuse[("Langfuse")]
 ```
 
-**Status:** all four patterns are live. `/generate` runs the full chain on every call; the SPAs surface `faithfulness` and `guardrails` results inline.
+**Status:** all four patterns are live and locked under 121 stdlib unit tests. `/generate` defaults to three-corpora-balanced retrieval (regulator + clinical evidence + practice voice) so every draft is grounded across the README's three corpora rather than whichever single corpus dominates a single ranking. The SPAs surface `corpora_present`/`missing`, `faithfulness`, and `guardrails` results inline.
 
 ---
 
@@ -338,16 +340,20 @@ Each task is independently re-runnable (CLAUDE.md "modular DAGs"). Failures part
 sequenceDiagram
     participant U as User
     participant RM as RAGMgmt /generate
-    participant Ret as Hybrid retrieval
-    participant LLM as Claude Opus 4.7
+    participant Ret as Three-corpora retrieval
+    participant Rk as Reranker
+    participant LLM as Drafter (Claude / Bedrock / Stub)
     participant F as Faithfulness scorer
     participant G as Guardrails (30 rules)
+    participant Lf as Langfuse
 
-    U->>RM: POST /generate {topic, top_k}
-    RM->>Ret: BM25 + pgvector cosine
-    Ret-->>RM: top-K hits (RRF-fused)
+    U->>RM: POST /generate {topic, top_k_per_corpus}
+    RM->>Ret: hybrid_search per corpus<br/>(regulator, clinical_evidence, practice_voice)
+    Ret-->>RM: top-K per corpus (RRF-fused)
+    RM->>Rk: rerank(query, candidates)
+    Rk-->>RM: top-N reranked + per-hit scores
 
-    RM->>LLM: messages.create (system: cached compliance brief,<br/>user: topic + citations)
+    RM->>LLM: compose (system: cached compliance brief,<br/>user: topic + cited passages)
     LLM-->>RM: draft markdown
 
     RM->>F: token-overlap score per sentence
@@ -361,10 +367,11 @@ sequenceDiagram
     RM->>G: regex policy scan
     G-->>RM: violations[]
 
-    RM-->>U: respCtxData {<br/>  draft_markdown,<br/>  citations[],<br/>  faithfulness {score, passed},<br/>  guardrails {violations, max_severity},<br/>  draft_attempts<br/>}
+    RM-)Lf: emit_generation_trace<br/>(disabled when LANGFUSE_HOST unset)
+    RM-->>U: respCtxData {<br/>  draft_markdown, citations[],<br/>  retrieval_meta {corpora_present, missing, total_hits, reranker},<br/>  faithfulness {score, passed},<br/>  guardrails {violations, max_severity},<br/>  draft_attempts<br/>}
 ```
 
-The customer portal renders the draft with inline citations, a Self-RAG faithfulness pill, and a colour-coded guardrails violations card.
+The customer portal renders the draft with inline citations (per-corpus colored chips), a three-corpora coverage panel that flags any missing corpus, a Self-RAG faithfulness pill, and a colour-coded guardrails violations card. The admin portal's source-urls screen shows the same corpus chips on each dataset selector entry.
 
 ---
 
@@ -402,6 +409,14 @@ curl -X POST http://localhost:8002/generate \
 # Recreate the conda venv from scratch
 FORCE=1 npm run venv:remove
 npm run venv:install
+
+# Run the test suite (stdlib only — no extra deps required)
+npm run test:py            # 121 tests across RAGMgmt + DAG handlers
+npm run test:py:ragmgmt    # 107 RAG core / compliance / observability / drafter / reranker tests
+npm run test:py:dags       # 14 HTML extraction + PubMed parser tests
+
+# Run a single test file
+python3 -m unittest middleware.RAGMgmt-Service.tests.test_compliance -v
 ```
 
 ---
@@ -416,14 +431,41 @@ All services follow the same discovery order: **explicit env var → `.env` file
 |---|---|---|
 | `ANTHROPIC_API_KEY` | *(unset)* | Enables the real Claude drafter; absent → stub composer |
 | `ANTHROPIC_MODEL` | `claude-opus-4-7` | Per the Excel: Opus 4.7 for drafting, Haiku 4.5 for compliance check |
-| `LLM_DRAFTER` | `auto` | `auto` / `stub` / `anthropic` |
+| `LLM_DRAFTER` | `auto` | `auto` / `stub` / `anthropic` / `bedrock` |
+| `BEDROCK_MODEL_ID` | *(unset)* | Required when `LLM_DRAFTER=bedrock`; e.g. `us.anthropic.claude-opus-4-7-…-v1:0` |
+| `BEDROCK_REGION` | `us-east-1` | AWS region for the Bedrock client |
 | `MAX_REGENERATE_ATTEMPTS` | `1` | Self-RAG retries when faithfulness fails |
+| `RAG_RERANKER_BACKEND` | `token_overlap` | `identity` / `token_overlap` / `cross_encoder` |
+| `RAG_RERANKER_ALPHA` | `0.5` | Blend weight: `final = α·rrf + (1-α)·rerank_signal` |
+| `RAG_CROSS_ENCODER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Hugging Face model name when `RAG_RERANKER_BACKEND=cross_encoder` |
+| `LANGFUSE_HOST` | *(unset)* | Enables Langfuse tracing (else no-op); e.g. `http://localhost:3000` |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | *(unset)* | Langfuse credentials (cloud-secret refs accepted) |
 | `AIRFLOW_BASE_URL` | `http://localhost:8080` | DataMgmt → Airflow REST API |
 | `AIRFLOW_UI_BASE` | falls back to `AIRFLOW_BASE_URL` | Browser-facing URL the SPAs link to |
 | `DATAMGMT_BASE_URL` | `http://host.docker.internal:8001` | DAG handlers → DataMgmt-Service |
 | `RAGMGMT_BASE_URL` | `http://host.docker.internal:8002` | DAG handlers → RAGMgmt-Service |
 | `RHC_DATA_ROOT` | `$HOME` | Localhost storage handler base |
 | `RHC_VECTORS_DB_DSN` | localhost rag_vectors | Embed handler → pgvector |
+| `RHC_FETCHER_MAX_RETRIES` | `3` | Retries on 408/425/429/5xx in DAG fetchers |
+| `RHC_FETCHER_INTER_REQUEST_SECS` | `0.4` | Polite spacing — keeps NCBI under 3 QPS unauthenticated |
+
+### Optional extras (heavy / opt-in deps)
+
+`pyproject.toml` exposes optional dep groups so a fresh local checkout pulls only the stdlib path. The factory modules (`service/drafters/factory.py`, `service/rerank/factory.py`) silently fall back to the stdlib default when an opt-in dep is missing — a misconfigured prod env never 500s `/generate`.
+
+| Extra | What it adds | When to install |
+|---|---|---|
+| `[langfuse]` | `langfuse>=2.0` | Set `LANGFUSE_HOST` and emit traces. Without this dep, the Langfuse client is a no-op. |
+| `[bedrock-drafter]` | `boto3>=1.34` | Set `LLM_DRAFTER=bedrock` and use AWS Bedrock's Claude Opus instead of the direct Anthropic API. |
+| `[cross-encoder-rerank]` | `sentence-transformers>=2.2` | Set `RAG_RERANKER_BACKEND=cross_encoder` for a learned reranker. ~2 GB transitive deps + ~90 MB model on first use. |
+| `[aws-secrets]` / `[azure-secrets]` / `[gcp-secrets]` | Cloud-secret SDKs | Used when `ANTHROPIC_API_KEY` (or any secret-shaped setting) is set to `aws-sm://…` / `azure-kv://…` / `gcp-sm://…` instead of a literal value. |
+
+```sh
+cd middleware/RAGMgmt-Service
+pip install '.[langfuse]'              # tracing
+pip install '.[bedrock-drafter]'       # AWS Bedrock drafter
+pip install '.[cross-encoder-rerank]'  # learned reranker
+```
 
 ### Cloud deployment portability
 
@@ -471,18 +513,23 @@ Both images run as non-root (`uid 10001`), expose `/health`, and read every secr
 
 | Pattern / surface | Status |
 |---|---|
-| Hybrid+Rerank retrieval | ✅ live (BM25 + pgvector + RRF; cross-encoder rerank is currently a stub) |
+| **Three-corpora grounding** (regulator + clinical_evidence + practice_voice) | ✅ live, default for `/generate`; `corpora_present`/`missing` surfaced in respCtxData |
+| Hybrid+Rerank retrieval | ✅ live (BM25 + pgvector + RRF + TokenOverlapReranker; CrossEncoderReranker opt-in via `[cross-encoder-rerank]`) |
 | Parent-Child chunking | ✅ live |
-| Self-RAG faithfulness loop | ✅ live (token-overlap scorer + regenerate-on-fail; LLM critic is the natural upgrade) |
+| Self-RAG faithfulness loop | ✅ live (token-overlap scorer + regenerate-on-fail) |
 | Output Guardrails | ✅ live (30-rule AHPRA policy) |
-| Real Anthropic drafter | ✅ live (Opus 4.7, prompt-cached system prompt) |
-| Admin portal | ✅ live (Initial DataSet + RAG Patterns + Source URLs screens) |
-| Customer portal | ✅ live (Catalog + Generate screens) |
-| AHPRA fetcher reads admin-curated URLs | ✅ live |
-| Real embedder (replace hash stub) | ⏳ next slice |
-| Cloud secret-manager integration | ⏳ |
+| **Real corpus paths** | ✅ AHPRA HTML, PMC full-text efetch, PubMed esearch + efetch (curated via admin portal) |
+| **Practice voice corpus** | ✅ 13-paragraph sample seeded into `child_chunk_embeddings` on stack-up |
+| **HTML extractor** (regulator pages) | ✅ `<main>`/`<article>` preference, drops nav/header/footer/cookie chrome |
+| **Drafters** | ✅ StubDrafter, AnthropicDrafter (direct API), BedrockDrafter (opt-in via `[bedrock-drafter]`) |
+| **Langfuse observability** | ✅ no-op default + privacy-by-default trace emission (opt-in via `[langfuse]` + `LANGFUSE_HOST`) |
+| **Admin portal** | ✅ Initial DataSet + RAG Patterns + Source URLs screens, with corpus chips on dataset rows |
+| **Customer portal** | ✅ Catalog + Generate screens, three-corpora coverage panel + per-citation corpus chips |
+| **Test suite** | ✅ 121 tests, stdlib-only, in CI: 27 RAG core + 22 compliance + 17 observability + 13 generation flow + 11 Bedrock + 17 cross-encoder + 8 HTML extraction + 6 PubMed parser |
+| Cloud secret-manager integration | ✅ AWS Secrets Manager / Azure Key Vault / GCP Secret Manager via secret-ref prefixes |
+| k8s manifests + per-cloud overlays | ✅ `DevOps/Cloud/k8s/{base,overlays/{aws,azure,gcp}}` |
+| Real embedder (replace hash stub) | ⏳ next slice (pending heavy-deps confirmation) |
 | Observability stack (Grafana / Prometheus / Jaeger) | ⏳ images not cached locally |
-| k8s manifests / Helm chart | ⏳ |
 
 ---
 
