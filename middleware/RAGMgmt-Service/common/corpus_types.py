@@ -32,6 +32,7 @@ DATASET_NAME_TO_CORPUS_TYPE: dict[str, str] = {
     # Open-access clinical evidence — every dataset on the evidence side.
     "NCBI_PubMed":                   CLINICAL_EVIDENCE,
     "PMC_Open_Access_Subset":        CLINICAL_EVIDENCE,
+    "PMC_Open_Access_FullText":      CLINICAL_EVIDENCE,
     "Kaggle_Medical_Transcriptions": CLINICAL_EVIDENCE,
     "Common_Crawl_Allied_Health":    CLINICAL_EVIDENCE,
     # Practice voice / brand reference.
