@@ -1,0 +1,52 @@
+<div class="shell">
+  <mat-toolbar class="top-nav">
+    <div class="brand">
+      <mat-icon class="brand-icon">health_and_safety</mat-icon>
+      <span class="brand-text">Regulated Healthcare RAG &mdash; Admin</span>
+    </div>
+    <nav class="top-nav-links">
+      <a
+        routerLink="/administration/data-management/initial-dataset"
+        routerLinkActive="active"
+        [class.active]="section() === 'administration'"
+      >
+        Administration
+      </a>
+      <a
+        routerLink="/rag-management"
+        routerLinkActive="active"
+        [class.active]="section() === 'rag-management'"
+      >
+        RAG Management
+      </a>
+    </nav>
+  </mat-toolbar>
+
+  <mat-sidenav-container class="body">
+    <mat-sidenav mode="side" opened class="side-nav">
+      @for (group of sideNav(); track group.label) {
+        <div class="nav-group">
+          <div class="nav-group-label">{{ group.label }}</div>
+          <mat-nav-list>
+            @for (item of group.children; track item.label) {
+              @if (item.link) {
+                <a
+                  mat-list-item
+                  [routerLink]="item.link"
+                  routerLinkActive="active"
+                >
+                  {{ item.label }}
+                </a>
+              } @else {
+                <span mat-list-item class="disabled">{{ item.label }}</span>
+              }
+            }
+          </mat-nav-list>
+        </div>
+      }
+    </mat-sidenav>
+    <mat-sidenav-content class="content">
+      <router-outlet />
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+</div>

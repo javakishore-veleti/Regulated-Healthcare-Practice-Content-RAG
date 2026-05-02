@@ -1,0 +1,178 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Initial Dataset</h1>
+      <p class="page-subtitle">
+        Project A datasets and their ingest history. Each tab is a single dataset; trigger
+        an ingest run against any active endpoint and watch the status flow through
+        <strong>in_progress &rarr; success / failure / skipped_cache_hit</strong>.
+      </p>
+    </div>
+    <button mat-stroked-button color="primary" (click)="refreshAll()" [disabled]="loading()">
+      <mat-icon>refresh</mat-icon>
+      <span>Refresh</span>
+    </button>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="error-banner">
+      <mat-icon>error_outline</mat-icon>
+      <span>Failed to load data: {{ errorMessage() }}. Is the FastAPI service running on localhost:8001?</span>
+    </div>
+  }
+
+  @if (loading() && !datasets().length) {
+    <div class="loading-row">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span>Loading dataset catalog…</span>
+    </div>
+  }
+
+  @if (datasets().length) {
+    <mat-tab-group animationDuration="120ms" mat-stretch-tabs="false" mat-align-tabs="start">
+      @for (ds of datasets(); track ds.dataset_name) {
+        <mat-tab [label]="ds.dataset_name">
+          <div class="tab-body">
+            <mat-card class="card-summary">
+              <mat-card-header>
+                <mat-card-title>{{ ds.dataset_name }}</mat-card-title>
+                <mat-card-subtitle>
+                  type: <code>{{ ds.dataset_type }}</code>
+                </mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                @if (latestRunFor(ds.dataset_name); as run) {
+                  <div class="latest-run">
+                    <div class="latest-run-row">
+                      <span class="latest-run-label">Latest run:</span>
+                      <span [class]="statusClass(run.ingest_status)">{{ run.ingest_status }}</span>
+                      <span class="latest-run-meta">at {{ run.ingest_start_dt }}</span>
+                    </div>
+                    <div class="latest-run-row">
+                      <span class="latest-run-label">Endpoint:</span>
+                      <code>{{ run.endpoint_name }}</code>
+                      <span class="latest-run-meta">({{ run.location_type }})</span>
+                    </div>
+                    @if (run.error_text) {
+                      <div class="latest-run-row error">
+                        <span class="latest-run-label">Error:</span>
+                        <span>{{ run.error_text }}</span>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <div class="no-runs">No ingest runs yet for this dataset.</div>
+                }
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="card-action">
+              <mat-card-header>
+                <mat-card-title>Trigger ingest</mat-card-title>
+                <mat-card-subtitle>
+                  Localhost endpoints honor the cache-hit short-circuit unless you tick
+                  <em>Force refresh</em>.
+                </mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="action-row">
+                  <mat-form-field appearance="outline" class="endpoint-field">
+                    <mat-label>Endpoint</mat-label>
+                    <mat-select
+                      [value]="uiFor(ds.dataset_name).selectedEndpointName"
+                      (valueChange)="setSelectedEndpoint(ds.dataset_name, $event)"
+                    >
+                      @for (ep of initialDatasetEndpoints(); track ep.endpoint_name) {
+                        <mat-option [value]="ep.endpoint_name">
+                          {{ ep.endpoint_name }} ({{ ep.location_type }})
+                        </mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-checkbox
+                    [checked]="uiFor(ds.dataset_name).forceRefresh"
+                    (change)="setForceRefresh(ds.dataset_name, $event.checked)"
+                  >
+                    Force refresh
+                  </mat-checkbox>
+
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    [disabled]="uiFor(ds.dataset_name).triggering || !uiFor(ds.dataset_name).selectedEndpointName"
+                    (click)="triggerIngest(ds.dataset_name)"
+                  >
+                    @if (uiFor(ds.dataset_name).triggering) {
+                      <mat-spinner diameter="16"></mat-spinner>
+                    } @else {
+                      <mat-icon>play_arrow</mat-icon>
+                    }
+                    <span>Run ingest</span>
+                  </button>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="card-history">
+              <mat-card-header>
+                <mat-card-title>Run history</mat-card-title>
+                <mat-card-subtitle>
+                  Joined view across <code>system_datasets_ingest</code>,
+                  <code>system_datasets</code>, and <code>endpoints</code>.
+                </mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                @if (runsForDataset(ds.dataset_name).length) {
+                  <table mat-table [dataSource]="runsForDataset(ds.dataset_name)" class="history-table">
+                    <ng-container matColumnDef="id">
+                      <th mat-header-cell *matHeaderCellDef>Run #</th>
+                      <td mat-cell *matCellDef="let r">{{ r.id }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="ingest_status">
+                      <th mat-header-cell *matHeaderCellDef>Status</th>
+                      <td mat-cell *matCellDef="let r">
+                        <span [class]="statusClass(r.ingest_status)">{{ r.ingest_status }}</span>
+                      </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="endpoint_name">
+                      <th mat-header-cell *matHeaderCellDef>Endpoint</th>
+                      <td mat-cell *matCellDef="let r"><code>{{ r.endpoint_name }}</code></td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="location_type">
+                      <th mat-header-cell *matHeaderCellDef>Type</th>
+                      <td mat-cell *matCellDef="let r">{{ r.location_type }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="ingest_start_dt">
+                      <th mat-header-cell *matHeaderCellDef>Started</th>
+                      <td mat-cell *matCellDef="let r">{{ r.ingest_start_dt }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="ingest_end_dt">
+                      <th mat-header-cell *matHeaderCellDef>Ended</th>
+                      <td mat-cell *matCellDef="let r">{{ r.ingest_end_dt ?? '—' }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="force_refresh">
+                      <th mat-header-cell *matHeaderCellDef>Force refresh</th>
+                      <td mat-cell *matCellDef="let r">{{ r.configs_json?.force_refresh ?? false }}</td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: historyColumns"></tr>
+                  </table>
+                } @else {
+                  <div class="no-runs">No history rows yet.</div>
+                }
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </mat-tab>
+      }
+    </mat-tab-group>
+  }
+</div>
