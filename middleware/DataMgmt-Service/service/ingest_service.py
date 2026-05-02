@@ -1,7 +1,12 @@
 import json
 from typing import Protocol
 
-from common.dtos import IngestDataSetReqDTO, IngestDataSetRespDTO
+from common.dtos import (
+    IngestDataSetReqDTO,
+    IngestDataSetRespDTO,
+    ListIngestRunsReqDTO,
+    ListIngestRunsRespDTO,
+)
 from common.return_codes import RC_OK, RC_VALIDATION_ERROR
 from common.tracing import traced
 from dao.datasets_dao import IDataSetsDao
@@ -20,6 +25,10 @@ INGEST_STATUS_SKIPPED_CACHE_HIT = "skipped_cache_hit"
 class IIngestService(Protocol):
     async def start_ingest(
         self, req: IngestDataSetReqDTO, resp: IngestDataSetRespDTO
+    ) -> int: ...
+
+    async def list_runs(
+        self, req: ListIngestRunsReqDTO, resp: ListIngestRunsRespDTO
     ) -> int: ...
 
 
@@ -112,3 +121,9 @@ class IngestService:
             else "ingest failed"
         )
         return RC_OK
+
+    @traced("ingest.service.list_runs")
+    async def list_runs(
+        self, req: ListIngestRunsReqDTO, resp: ListIngestRunsRespDTO
+    ) -> int:
+        return await self._ingest_dao.list_runs(req, resp)

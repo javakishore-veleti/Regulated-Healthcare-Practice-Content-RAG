@@ -42,3 +42,16 @@ class IngestDataSetRespDTO(_BaseDTO):
     ingest_start_dt, ingest_end_dt, message)."""
 
     respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class ListIngestRunsReqDTO(_BaseDTO):
+    """Filters for listing ingest run history. All filters are optional; omit to scan all."""
+
+    dataset_name: str | None = None
+    endpoint_name: str | None = None
+    limit: int = Field(default=100, ge=1, le=1000)
+    offset: int = Field(default=0, ge=0)
+
+
+class ListIngestRunsRespDTO(_BaseDTO):
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
