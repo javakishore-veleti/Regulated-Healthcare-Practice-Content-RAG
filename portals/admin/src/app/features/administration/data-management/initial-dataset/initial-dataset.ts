@@ -68,7 +68,20 @@ export class InitialDatasetComponent implements OnInit {
     'ingest_start_dt',
     'ingest_end_dt',
     'force_refresh',
+    'workflow',
   ];
+
+  // TODO: drive from env / settings endpoint once we have one. Local-dev assumption.
+  readonly airflowUiBase = 'http://localhost:8080';
+
+  airflowRunUrl(row: IngestRunRow): string | null {
+    if (!row.workflow_dag_id || !row.workflow_run_id) {
+      return null;
+    }
+    const dagId = encodeURIComponent(row.workflow_dag_id);
+    const runId = encodeURIComponent(row.workflow_run_id);
+    return `${this.airflowUiBase}/dags/${dagId}/grid?dag_run_id=${runId}`;
+  }
 
   ngOnInit(): void {
     this.refreshAll();

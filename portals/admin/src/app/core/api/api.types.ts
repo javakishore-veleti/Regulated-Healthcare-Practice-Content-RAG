@@ -40,6 +40,8 @@ export interface IngestRunRow {
   last_ingest_dt: string | null;
   error_text: string | null;
   configs_json: Record<string, unknown>;
+  workflow_dag_id: string | null;
+  workflow_run_id: string | null;
 }
 
 export type EndpointsResp = ApiResp<{ endpoints: EndpointRow[] }>;

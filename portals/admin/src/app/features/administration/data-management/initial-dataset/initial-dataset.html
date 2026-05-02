@@ -162,6 +162,20 @@
                       <td mat-cell *matCellDef="let r">{{ r.configs_json?.force_refresh ?? false }}</td>
                     </ng-container>
 
+                    <ng-container matColumnDef="workflow">
+                      <th mat-header-cell *matHeaderCellDef>Workflow run</th>
+                      <td mat-cell *matCellDef="let r">
+                        @if (airflowRunUrl(r); as href) {
+                          <a [href]="href" target="_blank" rel="noopener" class="airflow-link" [title]="r.workflow_run_id">
+                            <mat-icon class="airflow-link-icon">open_in_new</mat-icon>
+                            <span>{{ r.workflow_dag_id }}</span>
+                          </a>
+                        } @else {
+                          <span class="muted">—</span>
+                        }
+                      </td>
+                    </ng-container>
+
                     <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
                     <tr mat-row *matRowDef="let row; columns: historyColumns"></tr>
                   </table>

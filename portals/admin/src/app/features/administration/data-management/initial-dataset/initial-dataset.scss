@@ -144,3 +144,25 @@ code {
   border-radius: 4px;
   font-size: 0.85rem;
 }
+
+.airflow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--rhc-side-nav-active-fg);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+
+  &:hover { text-decoration: underline; }
+
+  .airflow-link-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
