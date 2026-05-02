@@ -1,4 +1,28 @@
 {
+  "/api/patterns": {
+    "target": "http://127.0.0.1:8002",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/api": "" }
+  },
+  "/api/chunk": {
+    "target": "http://127.0.0.1:8002",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/api": "" }
+  },
+  "/api/retrieve": {
+    "target": "http://127.0.0.1:8002",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/api": "" }
+  },
+  "/api/generate": {
+    "target": "http://127.0.0.1:8002",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/api": "" }
+  },
   "/api": {
     "target": "http://127.0.0.1:8001",
     "secure": false,
@@ -6,3 +30,4 @@
     "pathRewrite": { "^/api": "" }
   }
 }
+
