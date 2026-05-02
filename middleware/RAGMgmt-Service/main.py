@@ -18,7 +18,7 @@ from common.langfuse_client import LangfuseClient
 from common.otel import init_otel
 from common.settings import get_settings
 from dao.patterns_dao import PostgresRagPatternsDao
-from dao.retrieval_dao import PostgresRetrievalDao
+from dao.retrieval_dao_factory import build_retrieval_dao
 from service.chunking_service import ChunkingService
 from service.drafters.factory import build_drafter
 from service.faithfulness_service import FaithfulnessService
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     )
 
     patterns_dao = PostgresRagPatternsDao(pool)
-    retrieval_dao = PostgresRetrievalDao(vectors_pool)
+    retrieval_dao = build_retrieval_dao(settings, vectors_pool)
 
     reranker = build_reranker(settings)
     embedder = build_embedder(settings)

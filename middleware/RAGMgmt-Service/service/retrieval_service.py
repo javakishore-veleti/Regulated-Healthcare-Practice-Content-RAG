@@ -7,7 +7,7 @@ from common.dtos import (
     ThreeCorporaRetrieveReqDTO,
     ThreeCorporaRetrieveRespDTO,
 )
-from common.embedding import IEmbedder, StubEmbedder, vector_literal
+from common.embedding import IEmbedder, StubEmbedder
 from common.return_codes import RC_OK
 from common.tracing import traced
 from dao.retrieval_dao import IRetrievalDao
@@ -129,12 +129,15 @@ class RetrievalService:
         rrf_k: int,
         dataset_names: list[str] | None,
     ) -> tuple[list[dict], int, int]:
-        qvec_literal = vector_literal(self._embedder.embed(query))
+        # Backend-agnostic: pass the embedder's plain list-of-floats output
+        # to the DAO. Each DAO implementation formats it for its store
+        # (pgvector text-form literal, OpenSearch k-NN array, etc.).
+        query_vector = self._embedder.embed(query)
         lexical_hits = await self._dao.lexical_search(
             query=query, top_k=top_k_per_leg, dataset_names=dataset_names
         )
         dense_hits = await self._dao.dense_search(
-            query_vector_literal=qvec_literal,
+            query_vector=query_vector,
             top_k=top_k_per_leg,
             dataset_names=dataset_names,
         )

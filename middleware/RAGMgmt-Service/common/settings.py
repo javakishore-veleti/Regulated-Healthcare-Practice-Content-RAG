@@ -74,6 +74,16 @@ class Settings(BaseSettings):
     rag_embedder_backend: str = "stub"
     rag_embedder_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    # Retrieval backend — where the corpus index lives.
+    # `postgres` is the local-dev / single-region default (pgvector + tsvector
+    # in the rag_vectors DB). `aws_opensearch_serverless` is the README's
+    # AWS production target — see RAG_Mastery_Projects.xlsx Project A Task 7.
+    # Falls back to postgres when the [opensearch] extra OR endpoint is missing.
+    rag_retrieval_backend: str = "postgres"
+    aws_opensearch_endpoint: str = ""    # https://<id>.<region>.aoss.amazonaws.com
+    aws_opensearch_index: str = "rhc-child-chunks"
+    aws_opensearch_region: str = "us-east-1"
+
     # Langfuse — the README's primary observability mechanism. Captures
     # prompt/completion + retrieved-chunk metadata + faithfulness scores per
     # generation request. All three fields unset → gracefully disabled (no-op).

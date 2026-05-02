@@ -51,5 +51,10 @@ cross-encoder-rerank = ["sentence-transformers>=2.2"]
 # handler needs the same model swap, and the corpus needs re-embedding.
 real-embedder = ["sentence-transformers>=2.2"]
 
+# AWS OpenSearch Serverless retrieval backend — RAG_Mastery_Projects.xlsx
+# Project A Task 7's named target. Falls back to PostgresRetrievalDao when
+# this extra is missing OR AWS_OPENSEARCH_ENDPOINT is unset.
+opensearch = ["opensearch-py>=2.4", "boto3>=1.34"]
+
 [tool.uv]
 package = false

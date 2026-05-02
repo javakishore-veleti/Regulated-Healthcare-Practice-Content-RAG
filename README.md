@@ -462,6 +462,7 @@ All services follow the same discovery order: **explicit env var → `.env` file
 | `[bedrock-drafter]` | `boto3>=1.34` | Set `LLM_DRAFTER=bedrock` and use AWS Bedrock's Claude Opus instead of the direct Anthropic API. |
 | `[cross-encoder-rerank]` | `sentence-transformers>=2.2` | Set `RAG_RERANKER_BACKEND=cross_encoder` for a learned reranker. ~2 GB transitive deps + ~90 MB model on first use. |
 | `[real-embedder]` | `sentence-transformers>=2.2` | Set `RAG_EMBEDDER_BACKEND=sentence_transformer` for a learned embedder. Same dep as cross-encoder; installing both is incremental. ⚠ Switching also requires the DAG-side embedder + corpus re-embed. |
+| `[opensearch]` | `opensearch-py>=2.4`, `boto3>=1.34` | Set `RAG_RETRIEVAL_BACKEND=aws_opensearch_serverless` to swap retrieval to AOSS — Project A Excel Task 7. Auth via standard AWS chain. |
 | `[aws-secrets]` / `[azure-secrets]` / `[gcp-secrets]` | Cloud-secret SDKs | Used when `ANTHROPIC_API_KEY` (or any secret-shaped setting) is set to `aws-sm://…` / `azure-kv://…` / `gcp-sm://…` instead of a literal value. |
 
 ```sh
@@ -545,6 +546,7 @@ Short, focused recipes for the most common operator tasks. Index at [`docs/opera
 | Guide | When you'd use it |
 |---|---|
 | [Switching to Bedrock for drafting](./docs/operator-howto/switching-to-bedrock.md) | Production deploy on AWS; Claude served via Bedrock instead of the direct Anthropic API |
+| [AWS OpenSearch Serverless retrieval](./docs/operator-howto/aws-opensearch-retrieval.md) | Project A Excel Task 7 — flip retrieval to AOSS hybrid k-NN + BM25 instead of pgvector |
 | [Enabling the cross-encoder reranker](./docs/operator-howto/enabling-cross-encoder.md) | Retrieval quality matters; you're willing to pay the ~2 GB dep cost |
 | [Enabling the real embedder](./docs/operator-howto/enabling-real-embedder.md) | Semantic embeddings instead of the SHA-256 stub — improves dense retrieval quality |
 | [Enabling Langfuse observability](./docs/operator-howto/enabling-langfuse.md) | Per-call traces of retrieval + generation + faithfulness for review |
