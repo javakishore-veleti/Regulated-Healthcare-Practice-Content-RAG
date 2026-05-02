@@ -8,6 +8,8 @@ Do **not** add Claude as a co-author on commits in this repo. Omit the `Co-Autho
 
 ## Repository status
 
+This repo is **scoped to a single project**: `1_Project_A_Healthcare_Content` from `../RAG_Mastery_Projects.xlsx`. Other Project worksheets in that workbook (B/C/D/E/F/G) are explicitly **out of scope** — do not pull datasets, patterns, or design language from those tabs even if they look reusable.
+
 This repo is currently a **stub** — only `README.md`, `LICENSE`, and a Python-oriented `.gitignore` exist. There is no source code, package manifest, build system, or test suite yet. When asked to implement something, expect to be scaffolding from scratch (Python tooling implied by `.gitignore`: covers pip, uv, poetry, pdm, pytest, ruff, mypy, Streamlit, Marimo, Jupyter — none are committed to yet).
 
 Do not invent commands, directory layouts, or modules that aren't in the repo. If a task assumes infrastructure that doesn't exist, surface that and confirm before generating it.
@@ -85,6 +87,20 @@ Strict rules:
 - **OpenTelemetry spans:** every API handler, every service method, and every DAO method is wrapped in a span. Span names use the project's domain language (e.g., `regulator_rules.ingest`, `practice_voice.search`), not generic technical names.
 - **Jaeger integration:** OTLP traces are exported from FastAPI services. In the local-dev stack, the receiver is the Jaeger service in `DevOps/Local/Observability/Jaeger/`.
 - **OpenSearch audit log — feature-toggled.** When toggle `OPENSEARCH_AUDIT_ENABLED=true`, every long-lived workflow (especially ingestion) writes a **single denormalized record at completion** containing both start and end metadata (workflow id, dataset, endpoint id, start_dt, end_dt, status, error). Do not write a start-only record and a separate end record. The OpenSearch instance is itself resolved via an `endpoints` row of category `audit_index` so the same code targets localhost OpenSearch, AWS OpenSearch, or any compatible alternative.
+
+### DTO pattern (api ↔ service ↔ dao)
+
+Every method across `api/`, `service/`, and `dao/` follows a strict DTO contract — never loose positional/keyword arguments:
+
+- **One `ReqDTO` in, one `RespDTO` out-param, an `int` return code.** Method signatures look like:
+  ```python
+  def ingest_dataset(req: IngestDataSetReqDTO, resp: IngestDataSetRespDTO) -> int: ...
+  ```
+  The integer return is a status/return code (e.g., `RC_OK = 0`, non-zero for known error categories). The actual payload to be sent back to the API caller is populated into `resp`, not returned.
+- **Naming:** DTOs are **contextual, not generic** — `IngestDataSetReqDTO` / `IngestDataSetRespDTO`, `SearchPracticeVoiceReqDTO` / `SearchPracticeVoiceRespDTO`. Never `RequestDTO`, `BaseRequest`, `Req`, etc.
+- **`RespDTO.respCtxData: dict[str, Any]`** is the canonical place where the response payload lives. The api layer serializes `resp.respCtxData` (or the whole `RespDTO`, with `respCtxData` as the body) when returning to the HTTP caller. Service and DAO layers populate `respCtxData` directly — they do not return parallel data structures alongside it.
+- **Pydantic** for the DTO classes so OpenAPI/Swagger schemas are auto-generated correctly. `respCtxData` is typed (`dict[str, Any]` or a more specific schema when feasible) — never untyped.
+- **No bypass:** even one-arg methods take their `ReqDTO` (containing that one field). This keeps every layer's signature shape uniform and makes adding fields a non-breaking change.
 
 ## Database schema management
 
