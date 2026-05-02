@@ -53,11 +53,12 @@ TASK_EMBED_VIA_PGVECTOR = "embed_via_pgvector"
 # with its own fetcher module. Add entries here to extend.
 _FETCHER_REGISTRY: dict[str, tuple[str, str]] = {
     "regulator_guidelines":   ("ahpra_advertising_rules_fetch.py", "fetch_ahpra_advertising_rules"),
-    "pubmed":                 ("ncbi_pubmed_fetch.py",            "fetch_ncbi_pubmed"),
-    "pmc":                    ("pmc_open_access_fetch.py",        "fetch_pmc_open_access"),
-    "pmc_fulltext":           ("pmc_full_text_efetch_fetch.py",   "fetch_pmc_full_text_efetch"),
+    "pubmed":                 ("ncbi_pubmed_fetch.py",             "fetch_ncbi_pubmed"),
+    "pubmed_abstracts":       ("pubmed_abstracts_efetch_fetch.py", "fetch_pubmed_abstracts"),
+    "pmc":                    ("pmc_open_access_fetch.py",         "fetch_pmc_open_access"),
+    "pmc_fulltext":           ("pmc_full_text_efetch_fetch.py",    "fetch_pmc_full_text_efetch"),
     "medical_transcriptions": ("kaggle_medical_transcriptions_fetch.py", "fetch_kaggle_medical_transcriptions"),
-    "common_crawl":           ("common_crawl_fetch.py",           "fetch_common_crawl"),
+    "common_crawl":           ("common_crawl_fetch.py",            "fetch_common_crawl"),
 }
 
 

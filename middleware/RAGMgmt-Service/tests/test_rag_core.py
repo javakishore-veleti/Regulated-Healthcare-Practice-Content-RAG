@@ -143,11 +143,12 @@ class TestCorpusTypes(unittest.TestCase):
         self.assertIsNone(self.corpus_for_dataset("Definitely_Not_A_Dataset"))
 
     def test_seeded_datasets_present(self):
-        # These names must stay aligned with the V004/V009/V010 migrations.
+        # These names must stay aligned with the V004/V009/V010/V011 migrations.
         for required in (
             "Public_Regulator_Guidelines",
             "Practice_Voice_Sample",
             "PMC_Open_Access_FullText",
+            "NCBI_PubMed_Abstracts",
         ):
             with self.subTest(dataset=required):
                 self.assertIn(required, self.MAP)
