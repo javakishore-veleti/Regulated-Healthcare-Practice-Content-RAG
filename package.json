@@ -1,0 +1,24 @@
+{
+  "name": "regulated-healthcare-rag",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Repo-root developer tooling for Project A — Regulated Healthcare Practice Content RAG. NOT an npm package; this exists only to run scripts via `npm run`. Per-portal package.json files live under portals/admin and portals/customer.",
+  "scripts": {
+    "venv:ensure": "bash DevOps/Local/Scripts/venv-ensure.sh",
+    "venv:install": "bash DevOps/Local/Scripts/venv-install.sh",
+    "venv:show-activate": "bash DevOps/Local/Scripts/venv-show-activate.sh",
+    "venv:remove": "bash DevOps/Local/Scripts/venv-remove.sh",
+    "datamgmt:start": "bash DevOps/Local/Scripts/start-datamgmt.sh",
+    "ragmgmt:start": "bash DevOps/Local/Scripts/start-ragmgmt.sh",
+    "services:start": "bash DevOps/Local/Scripts/start-services.sh",
+    "services:stop": "bash DevOps/Local/Scripts/stop-services.sh",
+    "stack:up": "bash DevOps/Local/docker-all-up.sh",
+    "stack:down": "bash DevOps/Local/docker-all-down.sh",
+    "stack:status": "bash DevOps/Local/docker-all-status.sh",
+    "admin:dev": "cd portals/admin && npm start",
+    "customer:dev": "cd portals/customer && ng serve --port 4300"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
