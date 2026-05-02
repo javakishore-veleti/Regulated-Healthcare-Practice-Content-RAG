@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from common.secrets import resolve_secret
 
 
 class Settings(BaseSettings):
@@ -32,6 +35,14 @@ class Settings(BaseSettings):
     # an internal service-mesh URL while the browser must use the ingress URL.
     # Falls back to airflow_base_url when unset.
     airflow_ui_base: str | None = None
+
+    @field_validator("db_password", "airflow_password", mode="after")
+    @classmethod
+    def _resolve_credentials(cls, v: str) -> str:
+        # Sensitive fields can carry secret-manager references like
+        # `aws-sm://...`, `azure-kv://...`, `gcp-sm://...`. Local dev passes
+        # through literal values unchanged.
+        return resolve_secret(v) or v
 
     @property
     def effective_airflow_ui_base(self) -> str:
