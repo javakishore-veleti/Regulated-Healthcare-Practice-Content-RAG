@@ -1,6 +1,12 @@
 from typing import Protocol
 
-from common.dtos import HybridRetrieveReqDTO, HybridRetrieveRespDTO
+from common.corpus_types import ALL_CORPUS_TYPES, datasets_for_corpus
+from common.dtos import (
+    HybridRetrieveReqDTO,
+    HybridRetrieveRespDTO,
+    ThreeCorporaRetrieveReqDTO,
+    ThreeCorporaRetrieveRespDTO,
+)
 from common.embedding import stub_embed, vector_literal
 from common.return_codes import RC_OK
 from common.tracing import traced
@@ -12,11 +18,21 @@ class IRetrievalService(Protocol):
         self, req: HybridRetrieveReqDTO, resp: HybridRetrieveRespDTO
     ) -> int: ...
 
+    async def three_corpora_search(
+        self,
+        req: ThreeCorporaRetrieveReqDTO,
+        resp: ThreeCorporaRetrieveRespDTO,
+    ) -> int: ...
+
 
 class RetrievalService:
     """Hybrid search per the Project A pattern: BM25 (lexical) + pgvector (dense),
     fused with Reciprocal Rank Fusion. The cross-encoder rerank step is a stub for
     now (just truncates fused output to top_k); a real reranker plugs in here.
+
+    `three_corpora_search` runs the same pipeline once per corpus type so a
+    downstream draft can pull a guaranteed mix of regulator + practice voice +
+    clinical evidence rather than whichever corpus dominates a single ranking.
     """
 
     def __init__(self, retrieval_dao: IRetrievalDao) -> None:
@@ -26,41 +42,20 @@ class RetrievalService:
     async def hybrid_search(
         self, req: HybridRetrieveReqDTO, resp: HybridRetrieveRespDTO
     ) -> int:
-        query_vec = stub_embed(req.query)
-        qvec_literal = vector_literal(query_vec)
-
-        lexical_hits = await self._dao.lexical_search(
-            query=req.query, top_k=req.top_k_per_leg, dataset_name=req.dataset_name
+        ds_filter = [req.dataset_name] if req.dataset_name else None
+        fused, lex_count, dense_count = await self._hybrid_for_datasets(
+            query=req.query,
+            top_k_per_leg=req.top_k_per_leg,
+            rrf_k=req.rrf_k,
+            dataset_names=ds_filter,
         )
-        dense_hits = await self._dao.dense_search(
-            query_vector_literal=qvec_literal,
-            top_k=req.top_k_per_leg,
-            dataset_name=req.dataset_name,
-        )
-
-        fused = _rrf_fuse(lexical_hits, dense_hits, k=req.rrf_k)
         # Rerank stub — real cross-encoder swaps in here.
         top = fused[: req.top_k]
 
-        resp.respCtxData["hits"] = [
-            {
-                "id": h["hit"]["id"],
-                "child_id": h["hit"]["child_id"],
-                "parent_id": h["hit"]["parent_id"],
-                "dataset_name": h["hit"]["dataset_name"],
-                "page_index": h["hit"]["page_index"],
-                "char_offset_in_parent": h["hit"]["char_offset_in_parent"],
-                "child_text": h["hit"]["child_text"],
-                "parent_text": h["hit"]["parent_text"],
-                "rrf_score": h["score"],
-                "lexical_rank": h["lexical_rank"],
-                "dense_rank": h["dense_rank"],
-            }
-            for h in top
-        ]
+        resp.respCtxData["hits"] = [_hit_to_payload(h) for h in top]
         resp.respCtxData["legs"] = {
-            "lexical": {"hit_count": len(lexical_hits)},
-            "dense": {"hit_count": len(dense_hits)},
+            "lexical": {"hit_count": lex_count},
+            "dense":   {"hit_count": dense_count},
         }
         resp.respCtxData["fusion"] = {
             "method": "rrf",
@@ -70,6 +65,91 @@ class RetrievalService:
         }
         resp.respCtxData["embedder"] = "stub_sha256_dim384"
         return RC_OK
+
+    @traced("retrieval.three_corpora_search")
+    async def three_corpora_search(
+        self,
+        req: ThreeCorporaRetrieveReqDTO,
+        resp: ThreeCorporaRetrieveRespDTO,
+    ) -> int:
+        per_corpus: list[dict] = []
+        for corpus_type in ALL_CORPUS_TYPES:
+            datasets = datasets_for_corpus(corpus_type)
+            if not datasets:
+                per_corpus.append(
+                    {
+                        "corpus_type": corpus_type,
+                        "datasets": [],
+                        "hits": [],
+                        "legs": {"lexical": {"hit_count": 0}, "dense": {"hit_count": 0}},
+                        "note": "no datasets registered for this corpus",
+                    }
+                )
+                continue
+
+            fused, lex_count, dense_count = await self._hybrid_for_datasets(
+                query=req.query,
+                top_k_per_leg=req.top_k_per_leg,
+                rrf_k=req.rrf_k,
+                dataset_names=datasets,
+            )
+            top = fused[: req.top_k_per_corpus]
+            per_corpus.append(
+                {
+                    "corpus_type": corpus_type,
+                    "datasets": datasets,
+                    "hits": [_hit_to_payload(h, corpus_type=corpus_type) for h in top],
+                    "legs": {
+                        "lexical": {"hit_count": lex_count},
+                        "dense":   {"hit_count": dense_count},
+                    },
+                }
+            )
+
+        resp.respCtxData["per_corpus"] = per_corpus
+        resp.respCtxData["query"] = req.query
+        resp.respCtxData["embedder"] = "stub_sha256_dim384"
+        resp.respCtxData["corpus_count"] = len(per_corpus)
+        resp.respCtxData["total_hits"] = sum(len(c["hits"]) for c in per_corpus)
+        return RC_OK
+
+    async def _hybrid_for_datasets(
+        self,
+        query: str,
+        top_k_per_leg: int,
+        rrf_k: int,
+        dataset_names: list[str] | None,
+    ) -> tuple[list[dict], int, int]:
+        qvec_literal = vector_literal(stub_embed(query))
+        lexical_hits = await self._dao.lexical_search(
+            query=query, top_k=top_k_per_leg, dataset_names=dataset_names
+        )
+        dense_hits = await self._dao.dense_search(
+            query_vector_literal=qvec_literal,
+            top_k=top_k_per_leg,
+            dataset_names=dataset_names,
+        )
+        fused = _rrf_fuse(lexical_hits, dense_hits, k=rrf_k)
+        return fused, len(lexical_hits), len(dense_hits)
+
+
+def _hit_to_payload(h: dict, corpus_type: str | None = None) -> dict:
+    payload = {
+        "id": h["hit"]["id"],
+        "child_id": h["hit"]["child_id"],
+        "parent_id": h["hit"]["parent_id"],
+        "dataset_name": h["hit"]["dataset_name"],
+        "page_index": h["hit"]["page_index"],
+        "char_offset_in_parent": h["hit"]["char_offset_in_parent"],
+        "child_text": h["hit"]["child_text"],
+        "parent_text": h["hit"]["parent_text"],
+        "rrf_score": h["score"],
+        "lexical_rank": h["lexical_rank"],
+        "dense_rank": h["dense_rank"],
+    }
+    if corpus_type is not None:
+        payload["corpus_type"] = corpus_type
+    return payload
 
 
 def _rrf_fuse(

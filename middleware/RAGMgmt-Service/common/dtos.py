@@ -50,6 +50,25 @@ class HybridRetrieveRespDTO(_BaseDTO):
     respCtxData: dict[str, Any] = Field(default_factory=dict)
 
 
+class ThreeCorporaRetrieveReqDTO(_BaseDTO):
+    """Request DTO for three-corpora-balanced retrieval. Runs the hybrid pipeline
+    once per corpus (regulator / clinical_evidence / practice_voice) so the caller
+    receives a guaranteed mix instead of whichever corpus dominates a single
+    ranking. `top_k_per_corpus` caps each corpus's contribution."""
+
+    query: str = Field(..., min_length=1)
+    top_k_per_corpus: int = Field(default=3, ge=1, le=10)
+    top_k_per_leg: int = Field(default=50, ge=5, le=500)
+    rrf_k: int = Field(default=60, ge=1, le=1000)
+
+
+class ThreeCorporaRetrieveRespDTO(_BaseDTO):
+    """Returns hits grouped under `respCtxData.per_corpus`, each entry tagged
+    with its `corpus_type` and the dataset_names it draws from."""
+
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
 class GenerateGroundedDraftReqDTO(_BaseDTO):
     """Request DTO for compliance-grounded content generation. The topic drives
     retrieval; voice_profile is a free-form hint the generator can use to adapt tone
