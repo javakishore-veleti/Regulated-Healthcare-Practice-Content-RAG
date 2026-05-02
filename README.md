@@ -183,26 +183,48 @@ git clone https://github.com/javakishore-veleti/Regulated-Healthcare-Practice-Co
 cd Regulated-Healthcare-Practice-Content-RAG
 
 # 2. Bring up Postgres + Airflow + auto-apply migrations + seed data
+#    (uses cached Docker images — no pulls needed)
 npm run stack:up
 
-# 3. Create conda venv at $HOME/runtime_data/python_venvs/RHPContent-RAG
-#    and install requirements.txt
+# 3. Create the conda venv (Python 3.12) at the canonical path
+#    `$HOME/runtime_data/python_venvs/RHPContent-RAG` AND install requirements.txt.
+#    `npm run venv:ensure` is the create-only step; `venv:install` does both.
 npm run venv:install
+#    To activate the venv in your current shell (optional — `services:start`
+#    runs services with the venv's binaries directly, no activation needed):
+npm run venv:show-activate
+#    → conda activate "$HOME/runtime_data/python_venvs/RHPContent-RAG"
 
 # 4. Install portal dependencies
 (cd portals/admin    && npm install)
 (cd portals/customer && npm install)
 
-# 5. (Optional) Set ANTHROPIC_API_KEY in your shell to enable the real LLM drafter.
-#    Without it, the stub composer is used and everything still works end-to-end.
-export ANTHROPIC_API_KEY="sk-ant-..."
+# 5. Configure per-service environment (optional for local dev — defaults work).
+#    Each microservice has a `.env.template` you can copy to `.env`. The .env
+#    file is gitignored. Service settings come from (priority order):
+#       shell env var > .env file > built-in default
+cp middleware/DataMgmt-Service/.env.template middleware/DataMgmt-Service/.env
+cp middleware/RAGMgmt-Service/.env.template  middleware/RAGMgmt-Service/.env
+#    Then edit each .env (only ANTHROPIC_API_KEY is meaningfully needed for
+#    full functionality — the stub composer works without it):
+#    middleware/RAGMgmt-Service/.env →
+#        ANTHROPIC_API_KEY=sk-ant-api03-...
+#    Or in cloud k8s, use a secret reference instead of the literal:
+#        ANTHROPIC_API_KEY=aws-sm://us-east-1/my-anthropic-key
+#        ANTHROPIC_API_KEY=azure-kv://my-vault/anthropic-key
+#        ANTHROPIC_API_KEY=gcp-sm://my-project/anthropic-key
+#    (each cloud form needs its optional dep — see RAGMgmt's pyproject.toml extras.)
+
+# 6. Or — quickest dev shortcut: skip the .env file and just export in your shell
+export ANTHROPIC_API_KEY="sk-ant-api03-..."
 ```
 
 What this gets you:
 
 - A `pgvector/pgvector:pg16` Postgres on `:5432` with three databases (`airflow`, `rag_app`, `rag_vectors`), all migrations applied, and seed data for endpoints + datasets + RAG patterns + AHPRA source URLs.
 - An `apache/airflow:2.10.0-python3.12` Airflow on `:8080` (admin/admin) with the project's DAGs mounted read-only.
-- A conda venv at `$HOME/runtime_data/python_venvs/RHPContent-RAG` with every Python package both FastAPI services need.
+- A conda venv at `$HOME/runtime_data/python_venvs/RHPContent-RAG` with every Python package both FastAPI services need (see `requirements.txt` at the repo root).
+- Per-service `.env.template` files documenting every supported env var.
 
 ---
 
