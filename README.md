@@ -438,6 +438,8 @@ All services follow the same discovery order: **explicit env var → `.env` file
 | `RAG_RERANKER_BACKEND` | `token_overlap` | `identity` / `token_overlap` / `cross_encoder` |
 | `RAG_RERANKER_ALPHA` | `0.5` | Blend weight: `final = α·rrf + (1-α)·rerank_signal` |
 | `RAG_CROSS_ENCODER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Hugging Face model name when `RAG_RERANKER_BACKEND=cross_encoder` |
+| `RAG_EMBEDDER_BACKEND` | `stub` | `stub` (hash-based, default) / `sentence_transformer` (learned) |
+| `RAG_EMBEDDER_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Hugging Face model name when `RAG_EMBEDDER_BACKEND=sentence_transformer` |
 | `LANGFUSE_HOST` | *(unset)* | Enables Langfuse tracing (else no-op); e.g. `http://localhost:3000` |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | *(unset)* | Langfuse credentials (cloud-secret refs accepted) |
 | `AIRFLOW_BASE_URL` | `http://localhost:8080` | DataMgmt → Airflow REST API |
@@ -458,6 +460,7 @@ All services follow the same discovery order: **explicit env var → `.env` file
 | `[langfuse]` | `langfuse>=2.0` | Set `LANGFUSE_HOST` and emit traces. Without this dep, the Langfuse client is a no-op. |
 | `[bedrock-drafter]` | `boto3>=1.34` | Set `LLM_DRAFTER=bedrock` and use AWS Bedrock's Claude Opus instead of the direct Anthropic API. |
 | `[cross-encoder-rerank]` | `sentence-transformers>=2.2` | Set `RAG_RERANKER_BACKEND=cross_encoder` for a learned reranker. ~2 GB transitive deps + ~90 MB model on first use. |
+| `[real-embedder]` | `sentence-transformers>=2.2` | Set `RAG_EMBEDDER_BACKEND=sentence_transformer` for a learned embedder. Same dep as cross-encoder; installing both is incremental. ⚠ Switching also requires the DAG-side embedder + corpus re-embed. |
 | `[aws-secrets]` / `[azure-secrets]` / `[gcp-secrets]` | Cloud-secret SDKs | Used when `ANTHROPIC_API_KEY` (or any secret-shaped setting) is set to `aws-sm://…` / `azure-kv://…` / `gcp-sm://…` instead of a literal value. |
 
 ```sh
@@ -465,6 +468,7 @@ cd middleware/RAGMgmt-Service
 pip install '.[langfuse]'              # tracing
 pip install '.[bedrock-drafter]'       # AWS Bedrock drafter
 pip install '.[cross-encoder-rerank]'  # learned reranker
+pip install '.[real-embedder]'         # learned query embedder
 ```
 
 ### Cloud deployment portability
@@ -525,10 +529,10 @@ Both images run as non-root (`uid 10001`), expose `/health`, and read every secr
 | **Langfuse observability** | ✅ no-op default + privacy-by-default trace emission (opt-in via `[langfuse]` + `LANGFUSE_HOST`) |
 | **Admin portal** | ✅ Initial DataSet + RAG Patterns + Source URLs screens, with corpus chips on dataset rows |
 | **Customer portal** | ✅ Catalog + Generate screens, three-corpora coverage panel + per-citation corpus chips |
-| **Test suite** | ✅ 121 tests, stdlib-only, in CI: 27 RAG core + 22 compliance + 17 observability + 13 generation flow + 11 Bedrock + 17 cross-encoder + 8 HTML extraction + 6 PubMed parser |
+| **Embedder** | ✅ StubEmbedder (default; hash-based) + SentenceTransformerEmbedder (opt-in via `[real-embedder]`); both 384-dim so swapping doesn't require a schema migration |
+| **Test suite** | ✅ 136 tests, stdlib-only, in CI: 27 RAG core + 22 compliance + 17 observability + 13 generation flow + 11 Bedrock + 17 cross-encoder + 15 embedder + 8 HTML extraction + 6 PubMed parser |
 | Cloud secret-manager integration | ✅ AWS Secrets Manager / Azure Key Vault / GCP Secret Manager via secret-ref prefixes |
 | k8s manifests + per-cloud overlays | ✅ `DevOps/Cloud/k8s/{base,overlays/{aws,azure,gcp}}` |
-| Real embedder (replace hash stub) | ⏳ next slice (pending heavy-deps confirmation) |
 | Observability stack (Grafana / Prometheus / Jaeger) | ⏳ images not cached locally |
 
 ---
