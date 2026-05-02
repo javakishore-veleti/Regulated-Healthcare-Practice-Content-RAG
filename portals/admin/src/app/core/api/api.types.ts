@@ -44,8 +44,30 @@ export interface IngestRunRow {
   workflow_run_id: string | null;
 }
 
+export interface SourceUrlRow {
+  id: number;
+  system_dataset_id: number;
+  dataset_name: string | null;
+  url: string;
+  label: string | null;
+  is_active: boolean;
+  position: number;
+  notes: string | null;
+  created_dt: string | null;
+  updated_dt: string | null;
+}
+
 export type EndpointsResp = ApiResp<{ endpoints: EndpointRow[] }>;
 export type DatasetsResp = ApiResp<{ datasets: DatasetRow[] }>;
+export type SourceUrlsResp = ApiResp<{
+  source_urls: SourceUrlRow[];
+  dataset_name: string;
+  count: number;
+}>;
+export type SourceUrlMutationResp = ApiResp<{
+  source_url?: SourceUrlRow;
+  deleted_id?: number;
+}>;
 export type IngestRunsResp = ApiResp<{
   ingest_runs: IngestRunRow[];
   count: number;

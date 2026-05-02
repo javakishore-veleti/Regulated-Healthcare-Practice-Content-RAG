@@ -6,6 +6,8 @@ import {
   DatasetsResp,
   EndpointsResp,
   IngestRunsResp,
+  SourceUrlMutationResp,
+  SourceUrlsResp,
   StartIngestResp,
 } from './api.types';
 
@@ -40,5 +42,54 @@ export class DatamgmtApiService {
     force_refresh?: boolean;
   }): Observable<StartIngestResp> {
     return this.http.post<StartIngestResp>(`${this.base}/ingest`, payload);
+  }
+
+  listSourceUrls(
+    datasetName: string,
+    onlyActive = false
+  ): Observable<SourceUrlsResp> {
+    let params = new HttpParams();
+    if (onlyActive) params = params.set('only_active', 'true');
+    return this.http.get<SourceUrlsResp>(
+      `${this.base}/datasets/${encodeURIComponent(datasetName)}/source-urls`,
+      { params }
+    );
+  }
+
+  addSourceUrl(
+    datasetName: string,
+    body: {
+      url: string;
+      label?: string | null;
+      is_active?: boolean;
+      position?: number;
+      notes?: string | null;
+    }
+  ): Observable<SourceUrlMutationResp> {
+    return this.http.post<SourceUrlMutationResp>(
+      `${this.base}/datasets/${encodeURIComponent(datasetName)}/source-urls`,
+      body
+    );
+  }
+
+  updateSourceUrl(
+    id: number,
+    body: {
+      is_active?: boolean | null;
+      position?: number | null;
+      label?: string | null;
+      notes?: string | null;
+    }
+  ): Observable<SourceUrlMutationResp> {
+    return this.http.patch<SourceUrlMutationResp>(
+      `${this.base}/source-urls/${id}`,
+      body
+    );
+  }
+
+  deleteSourceUrl(id: number): Observable<SourceUrlMutationResp> {
+    return this.http.delete<SourceUrlMutationResp>(
+      `${this.base}/source-urls/${id}`
+    );
   }
 }
