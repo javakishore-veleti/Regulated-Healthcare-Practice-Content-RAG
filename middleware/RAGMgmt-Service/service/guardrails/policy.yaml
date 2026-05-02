@@ -1,0 +1,191 @@
+# Baseline output guardrails for AHPRA-aligned allied-health advertising in Project A.
+# Sourced from AHPRA advertising guidelines + ACCC / FTC general health-claim red flags.
+# Patterns are regex, applied case-insensitively. Tune via PR; future versions can
+# layer on LLM-based critic checks per the Excel architecture (Bedrock Guardrails).
+
+policy_id: ahpra_baseline_v1
+description: >-
+  Baseline AHPRA-aligned banned-phrase / forbidden-claim detection for Project A
+  content drafts. ~30 patterns spanning superlatives, cure/efficacy claims,
+  testimonials, urgency, and unsubstantiated authority appeals.
+
+rules:
+  - id: super_best
+    pattern: '\b(best|premier|world[- ]class|leading|top|number\s+one|no\.?\s*1|#1)\b'
+    category: superlative
+    severity: high
+    rationale: AHPRA forbids superlative claims implying one practice is better than others.
+
+  - id: super_comparative
+    pattern: '\b(better than|superior to|more effective than)\b'
+    category: comparative
+    severity: high
+    rationale: Direct comparison with other practitioners is forbidden.
+
+  - id: cure_terms
+    pattern: '\b(cure[sd]?|curing|miracle|miraculous|breakthrough)\b'
+    category: efficacy
+    severity: critical
+    rationale: Therapeutic cure claims require regulatory pre-approval.
+
+  - id: guarantee_terms
+    pattern: '\b(guarantee[sd]?|guaranteed)\b'
+    category: efficacy
+    severity: critical
+    rationale: Outcome guarantees are explicitly banned.
+
+  - id: hundred_percent_claim
+    pattern: '\b100%\s*(effective|safe|results?|cure|success|natural)?\b'
+    category: efficacy
+    severity: high
+    rationale: 100% claims are unverifiable in healthcare contexts.
+
+  - id: instant_relief
+    pattern: '\b(instant|immediate)\s+(relief|results?|cure|recovery)\b'
+    category: efficacy
+    severity: high
+    rationale: Unrealistic timelines are misleading.
+
+  - id: completely_safe
+    pattern: '\b(completely|totally)\s+safe\b'
+    category: safety
+    severity: high
+    rationale: Absolute safety claims violate evidence-based advertising rules.
+
+  - id: no_side_effects
+    pattern: '\bno\s+side[- ]?effects?\b'
+    category: safety
+    severity: high
+    rationale: All interventions can have side effects; this claim misleads.
+
+  - id: permanent_results
+    pattern: '\bpermanent(ly)?\s+(results?|relief|fix|cure|solution)\b'
+    category: efficacy
+    severity: high
+    rationale: Permanent-outcome claims are unverifiable.
+
+  - id: testimonial_terms
+    pattern: '\b(testimonial[s]?|patient\s+(testimonial|review|story|said))\b'
+    category: testimonial
+    severity: critical
+    rationale: AHPRA explicitly bans testimonials in advertising.
+
+  - id: client_review_phrasing
+    pattern: '\b(client\s+(review|story|said)|review[- ]based)\b'
+    category: testimonial
+    severity: high
+    rationale: Client reviews function as testimonials under regulator interpretation.
+
+  - id: doctor_recommended_unsupported
+    pattern: '\b(doctor[- ]recommended|approved by doctors|gp[- ]recommended)\b'
+    category: endorsement
+    severity: high
+    rationale: Endorsement claims require evidence and may imply false authority.
+
+  - id: fda_approved
+    pattern: '\bFDA[- ]approved\b'
+    category: endorsement
+    severity: medium
+    rationale: FDA does not regulate Australian practitioners; misleading in AU.
+
+  - id: tga_approved_misuse
+    pattern: '\bTGA[- ]approved\b'
+    category: endorsement
+    severity: medium
+    rationale: TGA approval applies to specific products, not general practice services.
+
+  - id: cancer_treatment_claim
+    pattern: '\b(cure|treat|reverse)\s+cancer\b'
+    category: therapeutic_claim
+    severity: critical
+    rationale: Cancer treatment claims are reserved for evidence-regulated contexts.
+
+  - id: chronic_disease_cure
+    pattern: '\b(cure|reverse)\s+(diabetes|arthritis|chronic\s+pain|asthma|depression|anxiety)\b'
+    category: therapeutic_claim
+    severity: critical
+    rationale: Chronic-disease cure claims are evidence-restricted.
+
+  - id: hype_language
+    pattern: '\b(revolutionary|life[- ]changing|game[- ]changer|transformative)\b'
+    category: hype
+    severity: medium
+    rationale: Hype language is discouraged by AHPRA advertising standards.
+
+  - id: amazing_outcomes
+    pattern: '\b(amazing|incredible|astonishing|stunning)\s+(results?|outcomes?)\b'
+    category: hype
+    severity: medium
+    rationale: Subjective superlatives are misleading.
+
+  - id: urgency_scarcity
+    pattern: '\b(limited[- ]time|act now|hurry|only\s+\d+\s+left|while stocks last)\b'
+    category: urgency
+    severity: medium
+    rationale: Urgency tactics are FTC red flags for healthcare advertising.
+
+  - id: all_natural_unsubstantiated
+    pattern: '\b(all[- ]?natural|chemical[- ]free)\b'
+    category: misleading_natural
+    severity: medium
+    rationale: '"Natural" claims without substantiation are misleading.'
+
+  - id: typical_results_implied
+    pattern: '\b(typical results|every patient|all patients)\b'
+    category: efficacy
+    severity: high
+    rationale: Implies universal outcomes; results-vary disclaimers required.
+
+  - id: cosmetic_subjective
+    pattern: '\b(perfect smile|hollywood smile|movie[- ]star smile)\b'
+    category: cosmetic_claim
+    severity: medium
+    rationale: Cosmetic outcome claims with subjective standards are restricted.
+
+  - id: pain_free_absolute
+    pattern: '\bpain[- ]free\b'
+    category: efficacy
+    severity: medium
+    rationale: Absolute pain-free claims are rarely substantiable.
+
+  - id: vulnerable_targeting
+    pattern: '\b(seniors?\s+deserve|elderly\s+need|kids\s+deserve)\b'
+    category: targeting
+    severity: medium
+    rationale: Emotional appeals targeting vulnerable populations are restricted.
+
+  - id: before_after_imagery
+    pattern: '\b(before[- ]and[- ]after|before/after photos?)\b'
+    category: testimonial
+    severity: high
+    rationale: Before-and-after imagery functions as testimonial under AHPRA rules.
+
+  - id: specialist_overbroad
+    pattern: '\b(specialist|expert|leading\s+expert)\s+in\s+(everything|all\s+conditions)\b'
+    category: qualification
+    severity: high
+    rationale: Specialist titles are protected; over-broad claims violate.
+
+  - id: percentage_success
+    pattern: '\b(99(\.\d+)?|100)%\s+(success|cure|effective)\b'
+    category: efficacy
+    severity: critical
+    rationale: Numerical success claims require evidence.
+
+  - id: dramatic_weight_loss
+    pattern: '\b(lose\s+\d+\s+(lbs?|kg|pounds?|kilos?)\s+(in|fast)|dramatic\s+weight\s+loss)\b'
+    category: weight_loss
+    severity: high
+    rationale: Specific weight-loss outcome claims are tightly restricted.
+
+  - id: celebrity_endorsement
+    pattern: '\b(celebrity[- ]endorsed|hollywood[- ]approved|featured\s+on\s+(oprah|dr\.?\s*oz))\b'
+    category: endorsement
+    severity: high
+    rationale: Celebrity endorsements without substantiation are misleading.
+
+  - id: clinical_unsubstantiated
+    pattern: '\bclinically\s+(proven|tested)\b'
+    category: scientific_claim
+    severity: high
+    rationale: Clinical-proof claims require linked evidence.

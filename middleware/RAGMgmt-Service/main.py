@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -6,6 +7,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from api import (
     chunking_router,
     generation_router,
+    guardrails_router,
     patterns_router,
     retrieval_router,
 )
@@ -16,6 +18,7 @@ from dao.patterns_dao import PostgresRagPatternsDao
 from dao.retrieval_dao import PostgresRetrievalDao
 from service.chunking_service import ChunkingService
 from service.generation_service import GenerationService
+from service.guardrails.guardrails_service import GuardrailsService
 from service.patterns_service import RagPatternsService
 from service.retrieval_service import RetrievalService
 
@@ -34,10 +37,14 @@ async def lifespan(app: FastAPI):
     retrieval_dao = PostgresRetrievalDao(vectors_pool)
 
     retrieval_service = RetrievalService(retrieval_dao)
+    guardrails_policy_path = Path(__file__).parent / "service" / "guardrails" / "policy.yaml"
+    guardrails_service = GuardrailsService(policy_path=guardrails_policy_path)
+
     app.state.patterns_service = RagPatternsService(patterns_dao)
     app.state.chunking_service = ChunkingService()
     app.state.retrieval_service = retrieval_service
     app.state.generation_service = GenerationService(retrieval_service)
+    app.state.guardrails_service = guardrails_service
 
     try:
         yield
@@ -63,6 +70,7 @@ app.include_router(patterns_router.router)
 app.include_router(chunking_router.router)
 app.include_router(retrieval_router.router)
 app.include_router(generation_router.router)
+app.include_router(guardrails_router.router)
 
 
 @app.get("/health", tags=["health"], summary="Liveness probe")

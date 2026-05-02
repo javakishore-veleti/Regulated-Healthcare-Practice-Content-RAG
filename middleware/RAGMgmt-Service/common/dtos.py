@@ -66,3 +66,18 @@ class GenerateGroundedDraftRespDTO(_BaseDTO):
     render inline footnotes deterministically."""
 
     respCtxData: dict[str, Any] = Field(default_factory=dict)
+
+
+class CheckGuardrailsReqDTO(_BaseDTO):
+    """Request DTO for output-guardrails scanning. Empty `policy_id` uses the
+    service default (currently the only loaded policy: ahpra_baseline_v1)."""
+
+    text: str = Field(..., min_length=1)
+    policy_id: str | None = None
+
+
+class CheckGuardrailsRespDTO(_BaseDTO):
+    """Returns violations + per-policy metadata. `passed` is True iff no
+    violations were detected at any severity."""
+
+    respCtxData: dict[str, Any] = Field(default_factory=dict)
