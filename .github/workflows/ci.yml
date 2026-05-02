@@ -63,6 +63,92 @@ jobs:
       - name: Unit tests — DAG handlers (HTML extraction)
         run: python -m unittest discover -s middleware/Regulated-Healthcare-DAGS/tests -v
 
+  optional-extras-import:
+    name: Optional extras — import smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: python-services
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [bedrock-drafter, cross-encoder-rerank, real-embedder, langfuse]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install base requirements + the matrix extra
+        working-directory: middleware/RAGMgmt-Service
+        run: |
+          python -m pip install --upgrade pip
+          # Install via pyproject extra so we cover the same dep resolution
+          # operators get from `pip install '.[<extra>]'`. The pyproject's
+          # `[project.optional-dependencies]` is the single source of truth.
+          pip install -e '.[${{ matrix.extra }}]'
+
+      - name: Verify the extra's load-bearing module imports
+        working-directory: middleware/RAGMgmt-Service
+        env:
+          MATRIX_EXTRA: ${{ matrix.extra }}
+        run: |
+          # Verify the import chain that goes live when the extra is installed.
+          # Construction-only — no model downloads, no AWS calls. Catches any
+          # regression where a factory's `import X` would fail with the dep
+          # actually installed (mocked sys.modules in unit tests can't catch
+          # this class of breakage).
+          python -c "
+          import os, sys
+          extra = os.environ['MATRIX_EXTRA']
+
+          if extra == 'bedrock-drafter':
+              import boto3  # noqa: F401
+              from service.drafters.bedrock_drafter import BedrockDrafter
+              # Construct without invoking — we don't have AWS creds in CI.
+              d = BedrockDrafter(model_id='anthropic.claude-x', region='us-east-1', max_tokens=10)
+              assert d.name == 'bedrock_anthropic_claude_drafter'
+
+          elif extra == 'cross-encoder-rerank':
+              import sentence_transformers  # noqa: F401
+              from service.rerank.cross_encoder_reranker import CrossEncoderReranker
+              # Construct without invoking — model load is lazy.
+              r = CrossEncoderReranker(model_name='cross-encoder/ms-marco-MiniLM-L-6-v2', alpha=0.5)
+              assert r.name == 'cross_encoder'
+
+          elif extra == 'real-embedder':
+              import sentence_transformers  # noqa: F401
+              from common.sentence_transformer_embedder import SentenceTransformerEmbedder
+              # Construct without invoking — model load is lazy.
+              e = SentenceTransformerEmbedder(
+                  model_name='sentence-transformers/all-MiniLM-L6-v2',
+                  expected_dim=384,
+              )
+              assert e.name == 'sentence_transformer'
+              assert e.dim == 384
+
+          elif extra == 'langfuse':
+              import langfuse  # noqa: F401
+              from common.langfuse_client import LangfuseClient, _HAS_LANGFUSE
+              assert _HAS_LANGFUSE, 'LangfuseClient module did not detect installed SDK'
+              # Disabled when no host (matches default behavior in prod env).
+              c = LangfuseClient(host=None, public_key=None, secret_key=None)
+              assert not c.enabled
+
+          else:
+              raise SystemExit(f'unknown extra: {extra}')
+
+          print(f'OK — [{extra}] import chain works end-to-end.')
+          "
+
+      - name: Re-run unit tests with the extra installed
+        working-directory: middleware/RAGMgmt-Service
+        env:
+          PYTHONPATH: ${{ github.workspace }}/middleware/RAGMgmt-Service
+        run: python -m unittest discover -s tests -v
+
   angular-portals:
     name: Angular — admin + customer
     runs-on: ubuntu-latest
