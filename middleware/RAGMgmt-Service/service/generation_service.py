@@ -10,6 +10,8 @@ from common.dtos import (
     GenerateGroundedDraftRespDTO,
     HybridRetrieveReqDTO,
     HybridRetrieveRespDTO,
+    ThreeCorporaRetrieveReqDTO,
+    ThreeCorporaRetrieveRespDTO,
 )
 from common.return_codes import RC_OK
 from common.tracing import traced
@@ -57,19 +59,24 @@ class GenerationService:
     async def generate_grounded_draft(
         self, req: GenerateGroundedDraftReqDTO, resp: GenerateGroundedDraftRespDTO
     ) -> int:
-        retrieve_req = HybridRetrieveReqDTO(
-            query=req.topic,
-            dataset_name=req.dataset_name,
-            top_k=req.top_k,
-        )
-        retrieve_resp = HybridRetrieveRespDTO()
-        rc = await self._retrieval.hybrid_search(retrieve_req, retrieve_resp)
+        ctx = resp.respCtxData
+        mode = (req.retrieval_mode or "three_corpora").lower()
+        ctx["retrieval_mode"] = mode
+
+        if mode == "three_corpora":
+            rc, hits, retrieve_meta = await self._retrieve_three_corpora(req)
+        elif mode == "single_corpus":
+            rc, hits, retrieve_meta = await self._retrieve_single_corpus(req)
+        else:
+            ctx["error"] = (
+                f"Unknown retrieval_mode={req.retrieval_mode!r}; "
+                "must be 'three_corpora' or 'single_corpus'."
+            )
+            return RC_OK  # surface error in payload, not via HTTP 500
         if rc != RC_OK:
             return rc
+        ctx["retrieval_meta"] = retrieve_meta
 
-        hits = retrieve_resp.respCtxData.get("hits", []) or []
-
-        ctx = resp.respCtxData
         ctx["topic"] = req.topic
         ctx["voice_profile"] = req.voice_profile or "default"
         ctx["generator"] = self._drafter.name
@@ -88,19 +95,17 @@ class GenerationService:
             {
                 "marker": f"[{i}]",
                 "dataset_name": h.get("dataset_name"),
+                "corpus_type": h.get("corpus_type"),
                 "page_index": h.get("page_index"),
                 "parent_id": h.get("parent_id"),
                 "child_id": h.get("child_id"),
                 "char_offset_in_parent": h.get("char_offset_in_parent"),
                 "snippet": (h.get("child_text") or "")[:240],
                 "rrf_score": h.get("rrf_score"),
+                "rerank_score": h.get("rerank_score"),
             }
             for i, h in enumerate(hits, start=1)
         ]
-        ctx["retrieval_meta"] = {
-            "legs": retrieve_resp.respCtxData.get("legs", {}),
-            "fusion": retrieve_resp.respCtxData.get("fusion", {}),
-        }
         if self._faithfulness is not None:
             citation_models = [
                 CitationSnippet(
@@ -180,6 +185,66 @@ class GenerationService:
                 "reason": "Guardrails service not configured for this deployment.",
             }
         return RC_OK
+
+    async def _retrieve_three_corpora(
+        self, req: GenerateGroundedDraftReqDTO
+    ) -> tuple[int, list[dict], dict]:
+        retrieve_req = ThreeCorporaRetrieveReqDTO(
+            query=req.topic,
+            top_k_per_corpus=req.top_k_per_corpus,
+        )
+        retrieve_resp = ThreeCorporaRetrieveRespDTO()
+        rc = await self._retrieval.three_corpora_search(retrieve_req, retrieve_resp)
+        if rc != RC_OK:
+            return rc, [], {}
+
+        per_corpus = retrieve_resp.respCtxData.get("per_corpus", []) or []
+        hits: list[dict] = []
+        per_corpus_hit_counts: dict[str, int] = {}
+        for entry in per_corpus:
+            entry_hits = entry.get("hits") or []
+            per_corpus_hit_counts[entry.get("corpus_type", "unknown")] = len(entry_hits)
+            hits.extend(entry_hits)
+
+        meta = {
+            "mode": "three_corpora",
+            "reranker": retrieve_resp.respCtxData.get("reranker"),
+            "embedder": retrieve_resp.respCtxData.get("embedder"),
+            "per_corpus_hit_counts": per_corpus_hit_counts,
+            "corpora_present": [
+                ct for ct, n in per_corpus_hit_counts.items() if n > 0
+            ],
+            "corpora_missing": [
+                ct for ct, n in per_corpus_hit_counts.items() if n == 0
+            ],
+            "total_hits": sum(per_corpus_hit_counts.values()),
+        }
+        return RC_OK, hits, meta
+
+    async def _retrieve_single_corpus(
+        self, req: GenerateGroundedDraftReqDTO
+    ) -> tuple[int, list[dict], dict]:
+        retrieve_req = HybridRetrieveReqDTO(
+            query=req.topic,
+            dataset_name=req.dataset_name,
+            top_k=req.top_k,
+        )
+        retrieve_resp = HybridRetrieveRespDTO()
+        rc = await self._retrieval.hybrid_search(retrieve_req, retrieve_resp)
+        if rc != RC_OK:
+            return rc, [], {}
+
+        hits = retrieve_resp.respCtxData.get("hits", []) or []
+        meta = {
+            "mode": "single_corpus",
+            "dataset_name": req.dataset_name,
+            "reranker": retrieve_resp.respCtxData.get("reranker"),
+            "embedder": retrieve_resp.respCtxData.get("embedder"),
+            "legs": retrieve_resp.respCtxData.get("legs", {}),
+            "fusion": retrieve_resp.respCtxData.get("fusion", {}),
+            "total_hits": len(hits),
+        }
+        return RC_OK, hits, meta
 
     async def _score_faithfulness(
         self, draft: str, citations: list[CitationSnippet]

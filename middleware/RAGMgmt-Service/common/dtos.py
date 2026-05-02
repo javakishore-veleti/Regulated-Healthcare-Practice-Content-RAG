@@ -70,13 +70,28 @@ class ThreeCorporaRetrieveRespDTO(_BaseDTO):
 
 
 class GenerateGroundedDraftReqDTO(_BaseDTO):
-    """Request DTO for compliance-grounded content generation. The topic drives
-    retrieval; voice_profile is a free-form hint the generator can use to adapt tone
-    once a real LLM client lands (today's stub composes excerpts verbatim)."""
+    """Request DTO for compliance-grounded content generation.
+
+    The topic drives retrieval; voice_profile is a free-form hint the generator
+    can use to adapt tone. `retrieval_mode` controls which retrieval pipeline
+    grounds the draft:
+
+      * `"three_corpora"` (default) — the README's load-bearing promise:
+        every draft is grounded in regulator + clinical_evidence + practice_voice.
+        `top_k_per_corpus` caps each corpus's contribution; `dataset_name` is
+        ignored in this mode.
+      * `"single_corpus"` — legacy single-leg hybrid retrieval, optionally
+        filtered to one `dataset_name`. Use when you deliberately want a
+        single-corpus draft (debugging, A/B against the balanced default).
+    """
 
     topic: str = Field(..., min_length=1)
+    retrieval_mode: str = Field(default="three_corpora")
+    # single_corpus knobs:
     dataset_name: str | None = None
     top_k: int = Field(default=5, ge=1, le=10)
+    # three_corpora knobs:
+    top_k_per_corpus: int = Field(default=3, ge=1, le=10)
     voice_profile: str | None = None
 
 
