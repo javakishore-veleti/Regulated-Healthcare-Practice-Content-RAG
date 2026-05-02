@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import random
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -36,6 +38,19 @@ DEFAULT_USER_AGENT = (
 
 REQUEST_TIMEOUT_SECS = 20
 DATAMGMT_LOOKUP_TIMEOUT_SECS = 10
+
+# Per-URL resilience knobs. Overridable via env so a DAG run can tune the rate
+# without a code change (e.g. lower QPS during a big PMC efetch crawl).
+DEFAULT_MAX_RETRIES = int(os.environ.get("RHC_FETCHER_MAX_RETRIES", "3"))
+DEFAULT_BACKOFF_BASE_SECS = float(os.environ.get("RHC_FETCHER_BACKOFF_BASE", "1.5"))
+DEFAULT_BACKOFF_MAX_SECS = float(os.environ.get("RHC_FETCHER_BACKOFF_MAX", "30.0"))
+# Polite inter-request spacing. NCBI E-utilities allows 3 QPS without API key
+# (~333ms); AHPRA / FTC are fine with anything reasonable. Default keeps the
+# floor at NCBI's limit so handlers that share this helper don't ever exceed.
+DEFAULT_INTER_REQUEST_SECS = float(os.environ.get("RHC_FETCHER_INTER_REQUEST_SECS", "0.4"))
+
+# HTTP statuses worth retrying. 429 (rate limit) honors Retry-After when present.
+RETRYABLE_HTTP_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 
 def _slugify(value: str) -> str:
@@ -92,6 +107,71 @@ def _resolve_urls(
     return list(fallback_urls), "fallback_default"
 
 
+def _backoff_secs(attempt: int) -> float:
+    """Exponential backoff with jitter. attempt is 1-based (first retry = 1)."""
+    base = DEFAULT_BACKOFF_BASE_SECS * (2 ** (attempt - 1))
+    capped = min(base, DEFAULT_BACKOFF_MAX_SECS)
+    # Add up to 25% jitter so concurrent retries don't synchronize.
+    return capped * (1.0 + random.uniform(0.0, 0.25))
+
+
+def _retry_after_secs(resp: requests.Response) -> float | None:
+    """Honor Retry-After if the server sent one. Spec allows seconds-int or HTTP-date;
+    we only handle the seconds form (sufficient for NCBI / AHPRA / FTC)."""
+    raw = resp.headers.get("Retry-After")
+    if not raw:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return None
+
+
+def _get_with_retry(
+    session: requests.Session,
+    url: str,
+    *,
+    handler_name: str,
+    timeout: int = REQUEST_TIMEOUT_SECS,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+) -> requests.Response:
+    """GET with retries on 429 / 5xx / connection errors. Honors Retry-After.
+    Raises after `max_retries` retries — caller logs failure into the manifest."""
+    last_exc: Exception | None = None
+    last_status: int | None = None
+
+    for attempt in range(0, max_retries + 1):
+        try:
+            resp = session.get(url, timeout=timeout)
+            if resp.status_code in RETRYABLE_HTTP_STATUSES and attempt < max_retries:
+                wait = _retry_after_secs(resp) or _backoff_secs(attempt + 1)
+                LOGGER.warning(
+                    "[%s] %s returned HTTP %d; retrying in %.1fs (attempt %d/%d)",
+                    handler_name, url, resp.status_code, wait, attempt + 1, max_retries,
+                )
+                last_status = resp.status_code
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt >= max_retries:
+                break
+            wait = _backoff_secs(attempt + 1)
+            LOGGER.warning(
+                "[%s] %s connection error %r; retrying in %.1fs (attempt %d/%d)",
+                handler_name, url, exc, wait, attempt + 1, max_retries,
+            )
+            time.sleep(wait)
+
+    msg = (
+        f"GET {url} failed after {max_retries} retries "
+        f"(last_status={last_status}, last_exc={last_exc!r})"
+    )
+    raise requests.RequestException(msg)
+
+
 def fetch_url_list(
     resolved: dict[str, Any],
     *,
@@ -99,15 +179,20 @@ def fetch_url_list(
     fallback_urls: list[str],
     file_extension: str = "html",
     user_agent: str = DEFAULT_USER_AGENT,
+    inter_request_secs: float | None = None,
 ) -> dict[str, Any]:
     """Generic URL-list fetcher used by every per-dataset handler whose ingest is
     'pull a list of URLs and save the raw bytes.'
 
     Per-handler customisation:
-        handler_name    Recorded in the manifest's `handler` field.
-        fallback_urls   Used only when conf.urls is empty AND DataMgmt returns nothing.
-        file_extension  e.g., 'html' (default), 'json', 'pdf'.
-        user_agent      Override the default polite UA when needed.
+        handler_name        Recorded in the manifest's `handler` field.
+        fallback_urls       Used only when conf.urls is empty AND DataMgmt returns nothing.
+        file_extension      e.g., 'html' (default), 'json', 'pdf', 'xml'.
+        user_agent          Override the default polite UA when needed.
+        inter_request_secs  Override polite request spacing (default 0.4s, NCBI-safe).
+
+    Per-URL resilience: GETs retry on 429 / 5xx / connection errors with exponential
+    backoff + jitter, honoring Retry-After. Whole run succeeds if ≥1 URL responds.
 
     Returns the same `{manifest_path, fetched_count}` shape the orchestrator DAG
     has been consuming since the AHPRA fetcher landed.
@@ -119,12 +204,19 @@ def fetch_url_list(
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     urls, url_source = _resolve_urls(resolved, fallback_urls)
+    spacing = (
+        inter_request_secs
+        if inter_request_secs is not None
+        else DEFAULT_INTER_REQUEST_SECS
+    )
     LOGGER.info(
-        "[%s] fetching %d url(s) for dataset=%s (source=%s)",
+        "[%s] fetching %d url(s) for dataset=%s (source=%s, spacing=%.2fs, max_retries=%d)",
         handler_name,
         len(urls),
         resolved["dataset_name"],
         url_source,
+        spacing,
+        DEFAULT_MAX_RETRIES,
     )
     fetched: list[dict[str, Any]] = []
 
@@ -132,11 +224,13 @@ def fetch_url_list(
     session.headers.update({"User-Agent": user_agent})
 
     for idx, url in enumerate(urls):
+        if idx > 0 and spacing > 0:
+            time.sleep(spacing)
+
         outcome: dict[str, Any] = {"url": url, "index": idx}
         try:
             LOGGER.info("[%s] GET %s", handler_name, url)
-            resp = session.get(url, timeout=REQUEST_TIMEOUT_SECS)
-            resp.raise_for_status()
+            resp = _get_with_retry(session, url, handler_name=handler_name)
 
             host = urlparse(url).netloc.replace(".", "_")
             fname = f"{idx:03d}_{_slugify(host)}_{_slugify(urlparse(url).path)}.{file_extension}"
@@ -169,6 +263,11 @@ def fetch_url_list(
         "url_source": url_source,
         "url_count": len(urls),
         "success_count": len(successes),
+        "fetcher_config": {
+            "max_retries": DEFAULT_MAX_RETRIES,
+            "inter_request_secs": spacing,
+            "backoff_base_secs": DEFAULT_BACKOFF_BASE_SECS,
+        },
         "fetched_pages": fetched,
     }
     manifest_path = target / "INGEST_MANIFEST.json"
