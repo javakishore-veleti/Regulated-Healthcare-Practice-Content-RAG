@@ -117,7 +117,7 @@ docker exec -it rhc-postgres psql -U rhc_admin -d rag_app   # interactive psql
 
 ### 5️⃣ Architecture diagrams
 
-Detailed multi-tab draw.io diagrams live under [`Docs/Design/`](./Docs/Design/) — open `architecture-diagrams.drawio` in [app.diagrams.net](https://app.diagrams.net) or the VS Code *Draw.io Integration* extension; tabs along the bottom:
+Detailed multi-tab draw.io diagrams live under [`docs/Design/`](./docs/Design/) — open `architecture-diagrams.drawio` in [app.diagrams.net](https://app.diagrams.net) or the VS Code *Draw.io Integration* extension; tabs along the bottom:
 
 1. **System (Local Dev)** — full local stack, path-routed `/api/*` proxy
 2. **Three-corpora retrieval** — regulator + clinical evidence + practice voice fan-out
