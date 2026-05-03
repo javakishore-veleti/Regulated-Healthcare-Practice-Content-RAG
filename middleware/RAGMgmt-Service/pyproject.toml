@@ -56,5 +56,11 @@ real-embedder = ["sentence-transformers>=2.2"]
 # this extra is missing OR AWS_OPENSEARCH_ENDPOINT is unset.
 opensearch = ["opensearch-py>=2.4", "boto3>=1.34"]
 
+# AWS Bedrock Guardrails — second-line semantic guardrails on top of the
+# regex policy. Reuses boto3 (shared with [bedrock-drafter]). Falls back to
+# regex-only when this extra is missing OR AWS_BEDROCK_GUARDRAIL_ID is
+# unset. Set RAG_GUARDRAILS_BACKEND=layered for the recommended posture.
+bedrock-guardrails = ["boto3>=1.34"]
+
 [tool.uv]
 package = false

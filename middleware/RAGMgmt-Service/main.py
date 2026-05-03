@@ -23,7 +23,7 @@ from service.chunking_service import ChunkingService
 from service.drafters.factory import build_drafter
 from service.faithfulness_service import FaithfulnessService
 from service.generation_service import GenerationService
-from service.guardrails.guardrails_service import GuardrailsService
+from service.guardrails.factory import build_guardrails_service
 from service.patterns_service import RagPatternsService
 from service.rerank.factory import build_reranker
 from service.retrieval_service import RetrievalService
@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
         retrieval_dao, reranker=reranker, embedder=embedder,
     )
     guardrails_policy_path = Path(__file__).parent / "service" / "guardrails" / "policy.yaml"
-    guardrails_service = GuardrailsService(policy_path=guardrails_policy_path)
+    guardrails_service = build_guardrails_service(settings, guardrails_policy_path)
     faithfulness_service = FaithfulnessService()
     drafter = build_drafter(settings)
 

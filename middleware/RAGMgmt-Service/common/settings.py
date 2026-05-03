@@ -93,6 +93,20 @@ class Settings(BaseSettings):
     aws_opensearch_index: str = "rhc-child-chunks"
     aws_opensearch_region: str = "us-east-1"
 
+    # Guardrails — Excel Project A AWS row "Guardrails".
+    # Backends:
+    #   `regex`   — 30-rule AHPRA policy (default; fast, free, clear rationale).
+    #   `bedrock` — Bedrock managed guardrails (semantic, denied topics, PII).
+    #   `layered` — regex FIRST then bedrock; merges violations from both.
+    #               Recommended for production AWS deploys.
+    # Bedrock layer requires the [bedrock-drafter] extra + a guardrail
+    # already provisioned in AWS (Bedrock console / Terraform).
+    rag_guardrails_backend: str = "regex"
+    rag_guardrails_short_circuit_on_critical: bool = True
+    aws_bedrock_guardrail_id: str = ""
+    aws_bedrock_guardrail_version: str = "DRAFT"
+    aws_bedrock_guardrail_source: str = "OUTPUT"  # OUTPUT for draft scanning
+
     # Langfuse — the README's primary observability mechanism. Captures
     # prompt/completion + retrieved-chunk metadata + faithfulness scores per
     # generation request. All three fields unset → gracefully disabled (no-op).
