@@ -552,6 +552,7 @@ Short, focused recipes for the most common operator tasks. Index at [`docs/opera
 | [Enabling the real embedder](./docs/operator-howto/enabling-real-embedder.md) | Semantic embeddings instead of the SHA-256 stub — improves dense retrieval quality |
 | [Enabling Langfuse observability](./docs/operator-howto/enabling-langfuse.md) | Per-call traces of retrieval + generation + faithfulness for review |
 | [Adding a new dataset (curated URLs)](./docs/operator-howto/adding-a-new-dataset.md) | A new corpus URL list / PubMed search needs to land in the catalog without a code change |
+| [Running the eval harness](./docs/operator-howto/running-the-eval-harness.md) | Excel Task 14 — RAG-triad evaluation; gate releases on faithfulness / ctx-prec / ans-rel thresholds |
 
 ---
 

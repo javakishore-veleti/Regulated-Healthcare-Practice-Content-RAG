@@ -11,6 +11,7 @@ Short, focused recipes for common operator tasks. Each guide walks through a sin
 | [Enabling the real embedder](./enabling-real-embedder.md) | You want semantic embeddings instead of the SHA-256 stub — improves dense retrieval quality. |
 | [Enabling Langfuse observability](./enabling-langfuse.md) | You want per-call traces of retrieval + generation + faithfulness for review. |
 | [Adding a new dataset (curated URLs)](./adding-a-new-dataset.md) | A new corpus URL list or PubMed search needs to land in the catalog without a code change. |
+| [Running the eval harness](./running-the-eval-harness.md) | Excel Task 14 — RAG-triad evaluation against golden triples; gate releases on faithfulness ≥ 0.90 / ctx-prec ≥ 0.75 / ans-rel ≥ 0.85. |
 
 All guides assume:
 - The conda venv is provisioned (`npm run venv:install`).
