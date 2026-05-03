@@ -226,12 +226,25 @@ class TestEmbedderFactory(unittest.TestCase):
         self.assertIsInstance(e, StubEmbedder)
 
     def test_sentence_transformer_falls_back_when_dep_missing(self):
-        # No fake installed → the factory's `import sentence_transformers`
-        # raises and the factory must return StubEmbedder.
-        from common.embedding_factory import build_embedder
-        from common.embedding import StubEmbedder
-        e = build_embedder(self._settings(rag_embedder_backend="sentence_transformer"))
-        self.assertIsInstance(e, StubEmbedder)
+        # Poison `sentence_transformers` so the factory's `import
+        # sentence_transformers` raises ImportError. Setting to None makes
+        # Python's import machinery treat it as "tried and failed" — works
+        # whether or not the dep is actually installed on disk, so this
+        # test catches the fallback path in BOTH the base CI job and the
+        # optional-extras-import matrix entry (which installs the dep
+        # deliberately to test the import chain).
+        sys.modules["sentence_transformers"] = None  # type: ignore[assignment]
+        # Drop any cached factory / embedder module so the next factory
+        # call re-runs its `import sentence_transformers` against the poison.
+        _reset_embedder_modules()
+        sys.modules.pop("common.sentence_transformer_embedder", None)
+        try:
+            from common.embedding_factory import build_embedder
+            from common.embedding import StubEmbedder
+            e = build_embedder(self._settings(rag_embedder_backend="sentence_transformer"))
+            self.assertIsInstance(e, StubEmbedder)
+        finally:
+            sys.modules.pop("sentence_transformers", None)
 
     def test_sentence_transformer_falls_back_when_model_empty(self):
         _install_fake_sentence_transformers()

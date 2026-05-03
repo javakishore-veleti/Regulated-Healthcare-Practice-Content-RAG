@@ -258,11 +258,24 @@ class TestRerankerFactory(unittest.TestCase):
         self.assertIsInstance(r, TokenOverlapReranker)
 
     def test_cross_encoder_falls_back_when_dep_missing(self):
-        # No fake installed → import should fail in the factory.
-        from service.rerank.factory import build_reranker
-        from service.rerank.reranker import TokenOverlapReranker
-        r = build_reranker(self._settings(rag_reranker_backend="cross_encoder"))
-        self.assertIsInstance(r, TokenOverlapReranker)
+        # Poison `sentence_transformers` so the factory's `import
+        # sentence_transformers` raises ImportError. Setting to None (not
+        # popping) makes Python's import machinery treat it as "tried and
+        # failed" — works whether or not the dep is actually installed on
+        # disk, so this test catches the fallback path in BOTH the base CI
+        # job and the optional-extras-import matrix entry.
+        sys.modules["sentence_transformers"] = None  # type: ignore[assignment]
+        # Drop any cached factory / reranker module so the next factory
+        # call re-runs its `import sentence_transformers` against the poison.
+        _reset_reranker_modules()
+        sys.modules.pop("service.rerank.cross_encoder_reranker", None)
+        try:
+            from service.rerank.factory import build_reranker
+            from service.rerank.reranker import TokenOverlapReranker
+            r = build_reranker(self._settings(rag_reranker_backend="cross_encoder"))
+            self.assertIsInstance(r, TokenOverlapReranker)
+        finally:
+            sys.modules.pop("sentence_transformers", None)
 
     def test_cross_encoder_falls_back_when_model_name_empty(self):
         _install_fake_sentence_transformers()
