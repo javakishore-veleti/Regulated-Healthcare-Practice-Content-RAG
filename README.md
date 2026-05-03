@@ -20,6 +20,114 @@
 
 ---
 
+## 🚀 Quick start
+
+The fastest path from zero to a running stack with the customer portal serving generated drafts. All commands run from the repo root.
+
+### 1️⃣ First-time setup (≈ 5 minutes)
+
+```sh
+# 1. Clone the repo
+git clone https://github.com/javakishore-veleti/Regulated-Healthcare-Practice-Content-RAG.git
+cd Regulated-Healthcare-Practice-Content-RAG
+
+# 2. Bring up the docker stack — Postgres + Airflow + auto-migrations + practice-voice seed.
+#    Uses cached Docker images (pgvector/pgvector:pg16, apache/airflow:2.10.0-python3.12).
+npm run stack:up
+
+# 3. Create the conda venv at $HOME/runtime_data/python_venvs/RHPContent-RAG
+#    and install requirements.txt (FastAPI, pydantic, psycopg, opentelemetry, ...).
+npm run venv:install
+
+# 4. Install Angular portal deps
+(cd portals/admin    && npm install)
+(cd portals/customer && npm install)
+
+# 5. (optional) Real Claude drafter — without this, the deterministic StubDrafter is used.
+#    Both work end-to-end; the stub composes verbatim citations, the real drafter paraphrases.
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# 6. Start the FastAPI services + run the suite to verify
+npm run services:start    # DataMgmt :8001, RAGMgmt :8002 in the background
+npm run test:py           # should print: Ran 146 tests ... OK
+```
+
+### 2️⃣ Daily workflow
+
+#### Morning — bring everything up
+
+| Goal | Command | What it does |
+|---|---|---|
+| Bring up the docker stack | `npm run stack:up` | Postgres + Airflow + applies migrations + seeds practice-voice corpus. Idempotent. |
+| Start FastAPI services | `npm run services:start` | DataMgmt :8001 + RAGMgmt :8002 in the background; logs to `/tmp/rhc-rag-logs/` |
+| Run the admin portal (dev) | `npm run admin:dev` | Hot-reload dev server at http://localhost:4200 |
+| Run the customer portal (dev) | `npm run customer:dev` | Hot-reload dev server at http://localhost:4300 |
+| Tail service logs | `tail -f /tmp/rhc-rag-logs/*.log` | DataMgmt + RAGMgmt + Airflow standalone output |
+| What's actually running? | `npm run stack:status` | docker-compose state + container health for every service in `DevOps/Local/` |
+
+#### Evening — shut everything down
+
+| Goal | Command | Notes |
+|---|---|---|
+| Stop FastAPI services | `npm run services:stop` | Clean PID-file shutdown of the background uvicorns |
+| Stop the docker stack (preserve DB data) | `npm run stack:down -- --keep-volumes` | Recommended for end-of-day; next morning's `stack:up` keeps the corpus indexed |
+| Tear down + wipe everything | `npm run stack:down` | Volumes are removed by default — used when you want a clean DB |
+
+#### One-shot daily start
+
+```sh
+npm run stack:up && npm run services:start
+# Open http://localhost:4200 (admin) or http://localhost:4300 (customer)
+```
+
+### 3️⃣ Docker images at a glance
+
+What's actually running in the local stack — `npm run stack:status` shows live state; the table below explains each container's job.
+
+| Container | Image (locked, cached locally) | Host port | What it stores / does |
+|---|---|---:|---|
+| `rhc-postgres` | `pgvector/pgvector:pg16` | 5432 | Two DBs: **`rag_app`** (endpoints, datasets, source URLs, ingest runs, rag_patterns) + **`rag_vectors`** (`child_chunk_embeddings`: pgvector + tsvector + section_id columns) |
+| `rhc-airflow` | `apache/airflow:2.10.0-python3.12` | 8080 | Standalone Airflow; runs the `regulated_healthcare_dataset_ingest` DAG (fetch → chunk → embed) |
+| `rhc-langfuse` *(optional)* | `langfuse/langfuse:latest` | 3000 | Per-call traces with prompt/completion + retrieved-chunk metadata + faithfulness scores. Disabled until `LANGFUSE_HOST` is set. |
+| `rhc-datamgmt` *(built on demand)* | `middleware/DataMgmt-Service/Dockerfile` | 8001 | FastAPI: endpoints, datasets, ingest orchestration, source URLs. Built for k8s deploys; in local dev the service runs via `npm run services:start` (no container, faster restart). |
+| `rhc-ragmgmt` *(built on demand)* | `middleware/RAGMgmt-Service/Dockerfile` | 8002 | FastAPI: chunk, retrieve, generate, guardrails, faithfulness. Same build/run model as DataMgmt. |
+| `rhc-admin` *(built on demand)* | `portals/admin/Dockerfile` (nginx unprivileged) | 8080 inside container | Production SPA — admin portal. Local dev uses `npm run admin:dev` against the source instead. |
+| `rhc-customer` *(built on demand)* | `portals/customer/Dockerfile` (nginx unprivileged) | 8080 inside container | Production SPA — customer portal. Local dev uses `npm run customer:dev`. |
+
+```sh
+# Useful inspection commands
+docker images | grep -E "pgvector|airflow|langfuse|rhc-"   # list our images
+docker ps                                                   # what's running right now
+docker compose -f DevOps/Local/Postgres/docker-compose.yml ps
+docker compose -f DevOps/Local/Airflow/docker-compose.yml  ps
+docker logs rhc-postgres --tail 50                          # recent logs
+docker exec -it rhc-postgres psql -U rhc_admin -d rag_app   # interactive psql
+```
+
+### 4️⃣ URLs once everything's up
+
+| Surface | URL |
+|---|---|
+| Admin portal (Initial DataSet, Source URLs, RAG Patterns) | http://localhost:4200 |
+| Customer portal (Catalog, Generate) | http://localhost:4300 |
+| DataMgmt-Service OpenAPI / Swagger | http://localhost:8001/docs |
+| RAGMgmt-Service OpenAPI / Swagger | http://localhost:8002/docs |
+| Airflow UI (DAG runs, task logs) | http://localhost:8080 |
+| Langfuse UI *(when `LANGFUSE_HOST=http://localhost:3000`)* | http://localhost:3000 |
+
+### 5️⃣ Architecture diagrams
+
+Detailed multi-tab draw.io diagrams live under [`Docs/Design/`](./Docs/Design/) — open `architecture-diagrams.drawio` in [app.diagrams.net](https://app.diagrams.net) or the VS Code *Draw.io Integration* extension; tabs along the bottom:
+
+1. **System (Local Dev)** — full local stack, path-routed `/api/*` proxy
+2. **Three-corpora retrieval** — regulator + clinical evidence + practice voice fan-out
+3. **Generation pipeline** — Self-RAG loop + guardrails + Langfuse trace
+4. **AWS Production** — ECS Fargate + Bedrock + AOSS + RDS + Langfuse-on-ECS
+5. **Ingestion DAG** — task graph + dispatch tables (`_FETCHER_REGISTRY`, `RHC_DAG_VECTOR_STORE`)
+6. **Plugin / Factory architecture** — every Protocol + concrete impl + opt-in extras
+
+---
+
 ## Why this exists
 
 A general-purpose LLM, given the prompt *"write SEO content for a physiotherapy clinic,"* will cheerfully produce a paragraph that breaches AHPRA's advertising guidelines in the first sentence — a testimonial here, a *"guaranteed pain-free results"* there, a *"#1 clinic in town"* superlative for flavour. In Australia under AHPRA, the United States under FTC health-claim rules, and other regulated jurisdictions, that draft is a compliance incident waiting to happen.
@@ -32,21 +140,23 @@ It's a working implementation of the four Project A patterns from [`RAG_Mastery_
 
 ## Table of contents
 
-1. [Architecture at a glance](#architecture-at-a-glance)
-2. [The four Project A patterns](#the-four-project-a-patterns)
-3. [Repository layout](#repository-layout)
-4. [First-time setup](#first-time-setup)
-5. [Daily workflow](#daily-workflow)
-6. [Service URLs and ports](#service-urls-and-ports)
-7. [The ingest pipeline](#the-ingest-pipeline)
-8. [The generate pipeline](#the-generate-pipeline)
-9. [Common tasks](#common-tasks)
-10. [Configuration](#configuration)
-11. [Troubleshooting](#troubleshooting)
-12. [Project status](#project-status)
-13. [Operator how-to guides](#operator-how-to-guides)
-14. [Observability commitments](#observability-commitments)
-15. [License](#license)
+1. [🚀 Quick start](#-quick-start) — first-time setup, daily workflow, docker images, URLs, diagrams
+2. [Why this exists](#why-this-exists) — the regulatory-compliance posture
+3. [Architecture at a glance](#architecture-at-a-glance) — Mermaid system diagram
+4. [The four Project A patterns](#the-four-project-a-patterns) — Hybrid+Rerank, Parent-Child, Self-RAG, Guardrails
+5. [Repository layout](#repository-layout) — directory tour
+6. [First-time setup](#first-time-setup) — full step-by-step (Quick start above is the TL;DR)
+7. [Daily workflow](#daily-workflow) — morning bring-up, evening shutdown
+8. [Service URLs and ports](#service-urls-and-ports)
+9. [The ingest pipeline](#the-ingest-pipeline) — sequence diagram of fetch → chunk → embed
+10. [The generate pipeline](#the-generate-pipeline) — sequence diagram of retrieve → draft → faithfulness → guardrails
+11. [Common tasks](#common-tasks) — psql, log tailing, ingest trigger, /generate curl, test runs
+12. [Configuration](#configuration) — env vars, optional extras, service image build
+13. [Troubleshooting](#troubleshooting) — common errors + fixes
+14. [Project status](#project-status) — coverage of every load-bearing piece
+15. [Operator how-to guides](#operator-how-to-guides) — switching to Bedrock, AOSS, cross-encoder, Langfuse, eval
+16. [Observability commitments](#observability-commitments)
+17. [License](#license)
 
 ---
 

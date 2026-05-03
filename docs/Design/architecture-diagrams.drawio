@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="rhc-rag-repo" version="22.0.0" type="device">
+  <diagram name="1. System (Local Dev)" id="local-dev">
+    <mxGraphModel dx="1280" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title-1" value="Regulated Healthcare Practice Content RAG — Local Dev Architecture" style="text;html=1;align=center;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g-portals" value="Angular Portals (Material 3)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#7f7f7f;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="600" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-portal" value="Admin Portal&lt;br&gt;:4200" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="120" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="customer-portal" value="Customer Portal&lt;br&gt;:4300" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="120" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g-services" value="FastAPI Middleware (api / service / dao)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#7f7f7f;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="240" width="600" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="datamgmt" value="DataMgmt-Service&lt;br&gt;:8001&lt;br&gt;&lt;font style='font-size:10px;'&gt;endpoints, datasets, ingest, source URLs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="280" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ragmgmt" value="RAGMgmt-Service&lt;br&gt;:8002&lt;br&gt;&lt;font style='font-size:10px;'&gt;chunk, retrieve, generate, guardrails, faithfulness&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="280" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g-stores" value="Postgres :5432 (pgvector image)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#7f7f7f;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="900" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="rag-app-db" value="rag_app DB&lt;br&gt;&lt;font style='font-size:10px;'&gt;endpoints, datasets, ingest runs, source URLs, rag_patterns&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="480" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="rag-vectors-db" value="rag_vectors DB&lt;br&gt;&lt;font style='font-size:10px;'&gt;child_chunk_embeddings (vector + tsvector + section_id)&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="480" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="airflow-db" value="airflow metadata DB" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="490" width="220" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="airflow" value="Apache Airflow :8080&lt;br&gt;&lt;font style='font-size:10px;'&gt;regulated_healthcare_dataset_ingest DAG&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="280" width="240" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="langfuse" value="Langfuse :3000&lt;br&gt;&lt;font style='font-size:10px;'&gt;(optional — set LANGFUSE_HOST)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="280" width="240" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="anthropic" value="Anthropic / Bedrock&lt;br&gt;Claude Opus 4.7&lt;br&gt;&lt;font style='font-size:10px;'&gt;optional drafter&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="120" width="240" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="endArrow=classic;html=1;fontSize=11;" edge="1" parent="1" source="admin-portal" target="datamgmt">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;fontSize=11;" edge="1" parent="1" source="customer-portal" target="ragmgmt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="path-routed /api/*" style="endArrow=classic;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="admin-portal" target="ragmgmt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="customer-portal" target="datamgmt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="psycopg async" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="datamgmt" target="rag-app-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="ragmgmt" target="rag-app-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="ragmgmt" target="rag-vectors-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="REST trigger / poll" style="endArrow=classic;startArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="datamgmt" target="airflow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="POST /chunk" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="airflow" target="ragmgmt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="psycopg2 upsert" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="airflow" target="rag-vectors-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" style="endArrow=classic;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ragmgmt" target="langfuse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="prompt-cached" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="ragmgmt" target="anthropic">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="airflow" target="airflow-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend-1" value="&lt;b&gt;Legend&lt;/b&gt;&#10;Solid arrow = direct call (psycopg, REST)&#10;Dashed arrow = optional / path-routed proxy&#10;Dashed box = optional component (Langfuse opt-in)" style="text;html=1;align=left;fontSize=10;fillColor=#fafaf6;strokeColor=#666666;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="600" width="560" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="2. Three-corpora retrieval" id="three-corpora">
+    <mxGraphModel dx="1280" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title-2" value="Three-corpora retrieval flow (POST /retrieve/three-corpora)" style="text;html=1;align=center;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="caption-2" value="Every draft is grounded in three corpora — regulator rules + clinical evidence + practice voice. Each corpus runs its own hybrid retrieval (BM25 + dense), fused with RRF, then reranked. The drafter receives a balanced mix instead of letting whichever corpus scores highest dominate." style="text;html=1;align=center;fontSize=11;fillColor=none;strokeColor=none;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="56" width="1280" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="query" value="Query&lt;br&gt;(topic from /generate)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="600" y="120" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="reg-corpus" value="REGULATOR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08434a;strokeColor=#08434a;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="evi-corpus" value="CLINICAL EVIDENCE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0089A7;strokeColor=#0089A7;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="540" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="voi-corpus" value="PRACTICE VOICE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0b04a;strokeColor=#f0b04a;fontColor=#000000;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="240" width="320" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="reg-bm25" value="BM25 (ts_rank_cd)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="320" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="reg-dense" value="Dense (pgvector ↔ cosine)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="290" y="320" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="reg-rrf" value="RRF fusion + rerank" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="400" width="320" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="evi-bm25" value="BM25 (ts_rank_cd)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="320" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="evi-dense" value="Dense (pgvector ↔ cosine)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="710" y="320" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="evi-rrf" value="RRF fusion + rerank" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="400" width="320" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="voi-bm25" value="BM25 (ts_rank_cd)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="960" y="320" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="voi-dense" value="Dense (pgvector ↔ cosine)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="320" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="voi-rrf" value="RRF fusion + rerank" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="960" y="400" width="320" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="reg-topk" value="top-K per corpus" style="text;html=1;align=center;fontSize=11;fontStyle=2;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="120" y="450" width="320" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="evi-topk" value="top-K per corpus" style="text;html=1;align=center;fontSize=11;fontStyle=2;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="540" y="450" width="320" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="voi-topk" value="top-K per corpus" style="text;html=1;align=center;fontSize=11;fontStyle=2;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="960" y="450" width="320" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="merge" value="Merged response&lt;br&gt;respCtxData.per_corpus[].hits&lt;br&gt;+ corpora_present, corpora_missing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="520" width="400" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="er-1" style="endArrow=classic;html=1;" edge="1" parent="1" source="query" target="reg-corpus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-2" style="endArrow=classic;html=1;" edge="1" parent="1" source="query" target="evi-corpus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-3" style="endArrow=classic;html=1;" edge="1" parent="1" source="query" target="voi-corpus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="er-4" style="endArrow=classic;html=1;" edge="1" parent="1" source="reg-corpus" target="reg-bm25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-5" style="endArrow=classic;html=1;" edge="1" parent="1" source="reg-corpus" target="reg-dense">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-6" style="endArrow=classic;html=1;" edge="1" parent="1" source="reg-bm25" target="reg-rrf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-7" style="endArrow=classic;html=1;" edge="1" parent="1" source="reg-dense" target="reg-rrf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="er-8" style="endArrow=classic;html=1;" edge="1" parent="1" source="evi-corpus" target="evi-bm25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-9" style="endArrow=classic;html=1;" edge="1" parent="1" source="evi-corpus" target="evi-dense">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-10" style="endArrow=classic;html=1;" edge="1" parent="1" source="evi-bm25" target="evi-rrf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-11" style="endArrow=classic;html=1;" edge="1" parent="1" source="evi-dense" target="evi-rrf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="er-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="voi-corpus" target="voi-bm25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-13" style="endArrow=classic;html=1;" edge="1" parent="1" source="voi-corpus" target="voi-dense">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-14" style="endArrow=classic;html=1;" edge="1" parent="1" source="voi-bm25" target="voi-rrf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-15" style="endArrow=classic;html=1;" edge="1" parent="1" source="voi-dense" target="voi-rrf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="er-16" style="endArrow=classic;html=1;" edge="1" parent="1" source="reg-rrf" target="merge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-17" style="endArrow=classic;html=1;" edge="1" parent="1" source="evi-rrf" target="merge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="er-18" style="endArrow=classic;html=1;" edge="1" parent="1" source="voi-rrf" target="merge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="3. Generation pipeline" id="generation-pipeline">
+    <mxGraphModel dx="1280" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title-3" value="Generation pipeline (POST /generate) — Self-RAG + Output Guardrails" style="text;html=1;align=center;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user-req" value="POST /generate&#10;{topic, voice_profile, top_k_per_corpus}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="90" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="three-corpora-call" value="Three-corpora retrieval&#10;(see Tab 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="190" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="reranker" value="Reranker&#10;TokenOverlap (default) | CrossEncoder (opt-in)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="280" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="drafter" value="Drafter&#10;Stub | Anthropic | Bedrock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="370" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="faith" value="FaithfulnessService&#10;score per sentence" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="460" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="decision" value="score ≥ threshold?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="550" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="regen" value="Regenerate with hint&#10;(if drafter.supports_regeneration)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="320" y="555" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="guardrails" value="Output Guardrails&#10;regex (30-rule AHPRA) | Bedrock | layered" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="660" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="response" value="Response&#10;respCtxData {&#10;  draft_markdown,&#10;  citations[] (corpus_type, section_id),&#10;  retrieval_meta (corpora_present/missing),&#10;  faithfulness {score, passed},&#10;  guardrails {violations[], max_severity}&#10;}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="540" y="760" width="360" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="langfuse-emit" value="Langfuse trace emit&#10;(privacy-by-default — rule_ids only,&#10;no violation_text or snippet content)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="770" width="280" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="g-e1" style="endArrow=classic;html=1;" edge="1" parent="1" source="user-req" target="three-corpora-call">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e2" style="endArrow=classic;html=1;" edge="1" parent="1" source="three-corpora-call" target="reranker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e3" style="endArrow=classic;html=1;" edge="1" parent="1" source="reranker" target="drafter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e4" style="endArrow=classic;html=1;" edge="1" parent="1" source="drafter" target="faith">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e5" style="endArrow=classic;html=1;" edge="1" parent="1" source="faith" target="decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e6" value="no" style="endArrow=classic;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="decision" target="regen">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e7" value="loop" style="endArrow=classic;html=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="regen" target="drafter">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="440" y="400" />
+              <mxPoint x="540" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g-e8" value="yes" style="endArrow=classic;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="decision" target="guardrails">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e9" style="endArrow=classic;html=1;" edge="1" parent="1" source="guardrails" target="response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g-e10" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="response" target="langfuse-emit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="4. AWS Production" id="aws-production">
+    <mxGraphModel dx="1280" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title-4" value="AWS production architecture — Project A Excel reference deploy" style="text;html=1;align=center;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="caption-4" value="Each cell in this diagram maps 1:1 to a row in RAG_Mastery_Projects.xlsx → 1_Project_A_Healthcare_Content → AWS architecture. Operators flip RAGMgmt's RAG_*_BACKEND env vars OR use rag_iface --cloud aws to swap the local-dev defaults to these AWS-managed services without code changes." style="text;html=1;align=center;fontSize=11;fillColor=none;strokeColor=none;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="56" width="1280" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="internet" value="Internet" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="120" width="160" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="alb" value="Application Load Balancer&#10;(ALB Ingress)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="200" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cf-s3" value="CloudFront + S3&#10;(Admin + Customer SPAs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="200" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ecs-data" value="ECS Fargate&#10;DataMgmt-Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="320" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecs-rag" value="ECS Fargate&#10;RAGMgmt-Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="320" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mwaa" value="MWAA&#10;(Managed Airflow)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="320" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecs-langfuse" value="ECS Fargate&#10;Langfuse self-hosted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="320" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aoss" value="AOSS&#10;OpenSearch Serverless&#10;(BM25 + k-NN hybrid)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=#3F8624;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="450" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bedrock" value="Amazon Bedrock&#10;Claude Opus (drafter)&#10;Titan Embed v2 (embedder)&#10;Bedrock Guardrails" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=#3F8624;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="450" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="rds" value="Amazon RDS / Aurora&#10;PostgreSQL&#10;(rag_app metadata)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=#3F8624;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="450" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s3-raw" value="S3&#10;(raw + Latest_Ingest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=#3F8624;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="450" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cw-otel" value="CloudWatch + OTel ADOT&#10;(infra logs + GenAI semconv traces)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7F2BC4;strokeColor=#7F2BC4;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="600" width="320" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="secrets" value="Secrets Manager&#10;(IRSA → ECS task role)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7F2BC4;strokeColor=#7F2BC4;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="600" width="320" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mwaa-s3" value="MWAA S3 bucket&#10;(DAGs + plugins)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=#3F8624;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="600" width="320" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ae-1" value="HTTPS" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="internet" target="alb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-2" value="static" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="internet" target="cf-s3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-3" style="endArrow=classic;html=1;" edge="1" parent="1" source="alb" target="ecs-data">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-4" style="endArrow=classic;html=1;" edge="1" parent="1" source="alb" target="ecs-rag">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ae-5" style="endArrow=classic;html=1;" edge="1" parent="1" source="ecs-data" target="rds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-6" style="endArrow=classic;html=1;" edge="1" parent="1" source="ecs-rag" target="aoss">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-7" style="endArrow=classic;html=1;" edge="1" parent="1" source="ecs-rag" target="bedrock">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-8" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="ecs-rag" target="ecs-langfuse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ae-9" style="endArrow=classic;html=1;" edge="1" parent="1" source="mwaa" target="ecs-data">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-10" style="endArrow=classic;html=1;" edge="1" parent="1" source="mwaa" target="ecs-rag">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-11" style="endArrow=classic;html=1;" edge="1" parent="1" source="mwaa" target="s3-raw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="mwaa" target="aoss">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae-13" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="mwaa-s3" target="mwaa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="5. Ingestion DAG" id="ingestion-dag">
+    <mxGraphModel dx="1280" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title-5" value="Ingestion pipeline — regulated_healthcare_dataset_ingest DAG" style="text;html=1;align=center;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="trigger" value="Trigger&#10;(admin portal OR POST /ingest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="120" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t1" value="resolve_destination&#10;&lt;font style='font-size:10px;'&gt;reads endpoints + system_datasets, builds path&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="120" width="260" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t2" value="fetch_for_dataset_type&#10;&lt;font style='font-size:10px;'&gt;dispatches on dataset_type&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="120" width="260" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t3" value="chunk_via_ragmgmt&#10;&lt;font style='font-size:10px;'&gt;HTML→markdown (preserves headings) → POST /chunk&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="120" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t4" value="embed_to_vector_store&#10;&lt;font style='font-size:10px;'&gt;dispatches on RHC_DAG_VECTOR_STORE&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="280" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fr-list" value="&lt;b&gt;Fetcher Registry (dataset_type → handler)&lt;/b&gt;&#10;&#10;regulator_guidelines  → ahpra_advertising_rules_fetch&#10;pubmed                → ncbi_pubmed_fetch (about pages)&#10;pubmed_abstracts      → pubmed_abstracts_efetch (esearch + efetch)&#10;pmc                   → pmc_open_access_fetch (catalog)&#10;pmc_fulltext          → pmc_full_text_efetch (article XML)&#10;medical_transcriptions→ kaggle_medical_transcriptions_fetch&#10;common_crawl          → common_crawl_fetch&#10;&#10;All share _url_list_fetcher: retries, backoff, polite spacing." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fafaf6;strokeColor=#666666;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="100" y="240" width="500" height="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="vs-list" value="&lt;b&gt;Vector Store Backend (RHC_DAG_VECTOR_STORE)&lt;/b&gt;&#10;&#10;pgvector                  → embed_via_pgvector (default)&#10;aws_opensearch_serverless → embed_via_opensearch&#10;&#10;Both use the SAME embedder dispatch:&#10;  RHC_DAG_EMBEDDER ∈ {stub, aws_bedrock}&#10;  BEDROCK_EMBEDDING_MODEL_ID for the latter.&#10;&#10;Doc IDs are deterministic — re-runs upsert in place.&#10;Manifest's `embedder` field records the active backend." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fafaf6;strokeColor=#666666;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="650" y="380" width="380" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="manifest" value="INGEST_MANIFEST.json&#10;&lt;font style='font-size:10px;'&gt;url_source, embedder, vector_store, total_rows_upserted&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="500" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="de-1" style="endArrow=classic;html=1;" edge="1" parent="1" source="trigger" target="t1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de-2" style="endArrow=classic;html=1;" edge="1" parent="1" source="t1" target="t2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de-3" style="endArrow=classic;html=1;" edge="1" parent="1" source="t2" target="t3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de-4" style="endArrow=classic;html=1;" edge="1" parent="1" source="t3" target="t4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de-5" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="t4" target="manifest">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram name="6. Plugin / Factory architecture" id="plugin-factory">
+    <mxGraphModel dx="1280" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title-6" value="Plugin / Factory architecture — every load-bearing component is swappable" style="text;html=1;align=center;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="caption-6" value="Each Protocol has a build_*() factory that picks one implementation per env var. Factories never raise — misconfigured prod envs fall back to the local-dev default with a clear WARNING. Heavy backends are gated behind opt-in [extras] in pyproject.toml." style="text;html=1;align=center;fontSize=11;fillColor=none;strokeColor=none;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="56" width="1280" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="iface-drafter" value="IDrafter&#10;LLM_DRAFTER" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08434a;strokeColor=#08434a;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="d-stub" value="StubDrafter&#10;(default)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="d-anth" value="AnthropicDrafter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="170" y="200" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="d-bed" value="BedrockDrafter&#10;[bedrock-drafter]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="260" width="160" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="iface-emb" value="IEmbedder&#10;RAG_EMBEDDER_BACKEND" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08434a;strokeColor=#08434a;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="120" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-stub" value="StubEmbedder&#10;(default)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="320" y="200" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e-st" value="SentenceTransformer&#10;[real-embedder]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=#3F8624;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="200" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e-bed" value="BedrockEmbedder&#10;[bedrock-drafter]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="260" width="160" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="iface-rer" value="IReranker&#10;RAG_RERANKER_BACKEND" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08434a;strokeColor=#08434a;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="120" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="r-id" value="IdentityReranker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="630" y="200" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="r-tok" value="TokenOverlap&#10;(default)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="760" y="200" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="r-ce" value="CrossEncoder&#10;[cross-encoder-rerank]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3F8624;strokeColor=#3F8624;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="260" width="180" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="iface-ret" value="IRetrievalDao&#10;RAG_RETRIEVAL_BACKEND" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08434a;strokeColor=#08434a;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="120" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ret-pg" value="PostgresRetrievalDao&#10;(default)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="200" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ret-os" value="OpenSearchRetrievalDao&#10;[opensearch]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="260" width="220" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="iface-grd" value="IGuardrailsService&#10;RAG_GUARDRAILS_BACKEND" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08434a;strokeColor=#08434a;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="120" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="g-regex" value="regex (30 rules)&#10;(default)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="200" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="g-bed" value="BedrockGuardrails&#10;[bedrock-guardrails]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="260" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="g-lay" value="Layered (regex + bedrock)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="320" width="220" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cli" value="rag_iface CLI&#10;python -m rag_iface.cli describe --cloud aws&#10;python -m rag_iface.cli generate --cloud local --topic ..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="320" y="440" width="700" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="presets" value="cloud_presets&#10;local: stub + token_overlap + postgres + regex + auto&#10;aws:   bedrock + bedrock + cross_encoder + opensearch + layered" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fafaf6;strokeColor=#666666;align=left;" vertex="1" parent="1">
+          <mxGeometry x="320" y="540" width="700" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend-6" value="&lt;b&gt;Color key&lt;/b&gt;: dark teal = Protocol; cyan = stdlib default; purple = Anthropic; green = HuggingFace dep; orange = AWS dep; light green = composite&#10;[brackets] = pyproject extra group required for that backend" style="text;html=1;align=left;fontSize=10;fillColor=#fafaf6;strokeColor=#666666;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="640" width="1320" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
