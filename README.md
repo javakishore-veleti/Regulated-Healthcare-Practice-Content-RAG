@@ -547,6 +547,7 @@ Short, focused recipes for the most common operator tasks. Index at [`docs/opera
 |---|---|
 | [Switching to Bedrock for drafting](./docs/operator-howto/switching-to-bedrock.md) | Production deploy on AWS; Claude served via Bedrock instead of the direct Anthropic API |
 | [AWS OpenSearch Serverless retrieval](./docs/operator-howto/aws-opensearch-retrieval.md) | Project A Excel Task 7 — flip retrieval to AOSS hybrid k-NN + BM25 instead of pgvector |
+| [Enabling Bedrock Guardrails (layered)](./docs/operator-howto/enabling-bedrock-guardrails.md) | Excel AWS row "Guardrails" — regex first, then Bedrock semantic checks |
 | [Enabling the cross-encoder reranker](./docs/operator-howto/enabling-cross-encoder.md) | Retrieval quality matters; you're willing to pay the ~2 GB dep cost |
 | [Enabling the real embedder](./docs/operator-howto/enabling-real-embedder.md) | Semantic embeddings instead of the SHA-256 stub — improves dense retrieval quality |
 | [Enabling Langfuse observability](./docs/operator-howto/enabling-langfuse.md) | Per-call traces of retrieval + generation + faithfulness for review |
