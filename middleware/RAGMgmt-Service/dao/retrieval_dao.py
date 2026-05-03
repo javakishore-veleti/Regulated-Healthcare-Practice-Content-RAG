@@ -51,6 +51,7 @@ class PostgresRetrievalDao:
                     """
                     SELECT id, dataset_name, page_index, parent_id, child_id,
                            parent_text, child_text, char_offset_in_parent,
+                           parent_heading, section_id,
                            ts_rank_cd(child_text_tsv, plainto_tsquery('english', %(q)s)) AS leg_score
                     FROM child_chunk_embeddings
                     WHERE child_text_tsv @@ plainto_tsquery('english', %(q)s)
@@ -79,6 +80,7 @@ class PostgresRetrievalDao:
                     """
                     SELECT id, dataset_name, page_index, parent_id, child_id,
                            parent_text, child_text, char_offset_in_parent,
+                           parent_heading, section_id,
                            1 - (embedding <=> %(qv)s::vector) AS leg_score
                     FROM child_chunk_embeddings
                     WHERE (%(ds)s::text[] IS NULL OR dataset_name = ANY(%(ds)s::text[]))
@@ -105,6 +107,8 @@ def _row_to_hit(row, leg: str) -> dict:
         "parent_text": row[5],
         "child_text": row[6],
         "char_offset_in_parent": row[7],
-        "leg_score": float(row[8]) if row[8] is not None else 0.0,
+        "parent_heading": row[8],
+        "section_id": row[9],
+        "leg_score": float(row[10]) if row[10] is not None else 0.0,
         "leg": leg,
     }

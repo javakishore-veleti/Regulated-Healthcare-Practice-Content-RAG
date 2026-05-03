@@ -33,7 +33,10 @@ SYSTEM_PROMPT = """You are a compliance-grounded content drafter for allied-heal
 
 ABSOLUTE CONSTRAINTS (non-negotiable):
 1. Every claim in your draft MUST be supported by at least one of the citations provided in the user message. If you cannot ground a claim in a citation, omit the claim. Do not hallucinate facts, statistics, dates, names, or quotes.
-2. Cite by inline numbered markers like [1], [2] matching the citation indices in the user message. Multiple citations on one claim look like [1][2].
+2. Cite by the EXACT marker shown in the citation block. Markers come in two forms:
+   - Numbered: `[1]`, `[2]`, ...
+   - Section-anchored: `[Public_Regulator_Guidelines#Testimonials]` — preferred when present, since it tells the reader which section of which corpus the claim came from.
+   Use whichever form the citation block shows; do not invent or convert. Multiple citations on one claim concatenate: `[1][2]` or `[Dataset#Section_A][Dataset#Section_B]`.
 3. NEVER use any of these regulator-banned phrases or claim categories:
    - Superlatives: "best", "premier", "world-class", "leading", "top", "#1", "number one"
    - Comparatives: "better than", "superior to", "more effective than"
@@ -57,14 +60,26 @@ If the citations are insufficient to write anything compliant about the topic, o
 
 
 def _format_citations_for_prompt(citations: list[dict]) -> str:
+    """Format the citation block sent to the drafter. When a chunk has a
+    `section_id`, the marker is `[Dataset#Section_Anchor]` (Excel Task 11
+    cite-by-section). Otherwise falls back to `[N]`. Both forms are valid
+    citations the drafter is told to preserve verbatim."""
     blocks: list[str] = []
     for i, h in enumerate(citations, start=1):
         text = (h.get("child_text") or h.get("snippet") or "").strip()
         ds = h.get("dataset_name")
         page = h.get("page_index")
         parent = h.get("parent_id")
+        section_id = h.get("section_id")
+        heading = h.get("parent_heading")
+        if section_id and ds:
+            marker = f"[{ds}#{section_id}]"
+            heading_meta = f' section="{heading}"' if heading else ""
+        else:
+            marker = f"[{i}]"
+            heading_meta = ""
         blocks.append(
-            f"[{i}] dataset={ds} page={page} parent={parent}\n    {text}"
+            f"{marker} dataset={ds} page={page} parent={parent}{heading_meta}\n    {text}"
         )
     return "\n\n".join(blocks) if blocks else "(no citations available)"
 

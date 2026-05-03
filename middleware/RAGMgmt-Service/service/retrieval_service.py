@@ -155,6 +155,10 @@ def _hit_to_payload(h: dict, corpus_type: str | None = None) -> dict:
         "char_offset_in_parent": h["hit"]["char_offset_in_parent"],
         "child_text": h["hit"]["child_text"],
         "parent_text": h["hit"]["parent_text"],
+        # Section anchors — Excel Task 4 + 11. Null for rows ingested before
+        # the V003 migration ran or for sources that had no markdown headings.
+        "parent_heading": h["hit"].get("parent_heading"),
+        "section_id": h["hit"].get("section_id"),
         "rrf_score": h["score"],
         "lexical_rank": h["lexical_rank"],
         "dense_rank": h["dense_rank"],

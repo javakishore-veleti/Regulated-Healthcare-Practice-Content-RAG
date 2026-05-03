@@ -19,11 +19,17 @@ export interface GenerateDraftRequest {
 }
 
 export interface DraftCitation {
+  // Marker is `[N]` for legacy hits OR `[Dataset#Section_Anchor]` when the
+  // chunker had section IDs available (Excel Task 4 + 11 — cite-by-section).
   marker: string;
   dataset_name: string | null;
   // corpus_type is populated when retrieval_mode === 'three_corpora'; null in
   // single_corpus mode (the legacy path).
   corpus_type: CorpusType | null;
+  // Section anchors (Excel Task 4). Both null for chunks ingested before the
+  // V003 rag_vectors migration ran or for sources without markdown headings.
+  parent_heading: string | null;
+  section_id: string | null;
   page_index: number | null;
   parent_id: string | null;
   child_id: string | null;

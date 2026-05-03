@@ -189,6 +189,9 @@
                     }
                     <span class="citation-source">
                       <code>{{ c.dataset_name }}</code>
+                      @if (c.parent_heading) {
+                        · §&nbsp;{{ c.parent_heading }}
+                      }
                       · page {{ c.page_index }}
                       · {{ c.parent_id }}
                     </span>

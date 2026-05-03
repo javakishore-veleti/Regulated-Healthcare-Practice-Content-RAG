@@ -171,15 +171,45 @@ class TestChunkingHelpers(unittest.TestCase):
         text = "paragraph one\n\nparagraph two\n\nparagraph three"
         parents = self.split_parents(text, max_size=200)
         self.assertEqual(len(parents), 3)
+        # Markdown-aware shape: each parent is a {text, heading} dict; with no
+        # markdown headings in the input, heading is None for every parent.
+        for p in parents:
+            self.assertIsNone(p["heading"])
+            self.assertIn("text", p)
 
     def test_long_paragraph_subsplit_to_cap(self):
-        # Each parent must not exceed the cap.
+        # Each parent's text must not exceed the cap.
         long_para = "word " * 500  # 2500 chars
         parents = self.split_parents(long_para, max_size=300)
         self.assertGreater(len(parents), 1)
         for p in parents:
-            with self.subTest(p=p[:30]):
-                self.assertLessEqual(len(p), 300)
+            text = p["text"]
+            with self.subTest(p=text[:30]):
+                self.assertLessEqual(len(text), 300)
+
+    def test_markdown_headings_attach_to_following_parents(self):
+        # Excel Task 4 — markdown heading lines become parent_heading metadata
+        # on subsequent parents. Headings stick across paragraphs until the
+        # next heading.
+        text = (
+            "## Testimonials\n\n"
+            "Section 133 of the National Law prohibits testimonials.\n\n"
+            "Practitioners are responsible for any breach.\n\n"
+            "## Misleading claims\n\n"
+            "Advertising must not be misleading or deceptive."
+        )
+        parents = self.split_parents(text, max_size=400)
+        # 3 body parents (heading lines aren't emitted as parents themselves).
+        self.assertEqual(len(parents), 3)
+        self.assertEqual(parents[0]["heading"], "Testimonials")
+        self.assertEqual(parents[1]["heading"], "Testimonials")  # sticky
+        self.assertEqual(parents[2]["heading"], "Misleading claims")
+
+    def test_no_heading_yields_none(self):
+        text = "Just a body paragraph."
+        parents = self.split_parents(text, max_size=400)
+        self.assertEqual(len(parents), 1)
+        self.assertIsNone(parents[0]["heading"])
 
     def test_children_offsets_round_trip(self):
         # Each child's text should appear at its reported offset within the parent.

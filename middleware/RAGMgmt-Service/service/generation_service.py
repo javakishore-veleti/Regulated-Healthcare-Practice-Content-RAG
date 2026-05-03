@@ -93,9 +93,11 @@ class GenerationService:
         ctx["regeneration_history"] = []
         ctx["citations"] = [
             {
-                "marker": f"[{i}]",
+                "marker": _build_citation_marker(i, h),
                 "dataset_name": h.get("dataset_name"),
                 "corpus_type": h.get("corpus_type"),
+                "parent_heading": h.get("parent_heading"),
+                "section_id": h.get("section_id"),
                 "page_index": h.get("page_index"),
                 "parent_id": h.get("parent_id"),
                 "child_id": h.get("child_id"),
@@ -271,6 +273,20 @@ class GenerationService:
             "regenerate_recommended": f.get("regenerate_recommended"),
             "per_sentence_preview": (f.get("per_sentence") or [])[:6],
         }
+
+
+def _build_citation_marker(index: int, hit: dict) -> str:
+    """Cite-by-section when the chunk has a section anchor, else the legacy
+    `[N]` marker. Excel Task 11 — "Prompt template: cite-by-section". Format:
+        [Public_Regulator_Guidelines#Testimonials]    when section_id is set
+        [1]                                            otherwise
+    The drafter's prompt template treats either form as a citation marker
+    and Claude is told to use whichever appears in the citation block."""
+    section_id = hit.get("section_id")
+    dataset = hit.get("dataset_name")
+    if section_id and dataset:
+        return f"[{dataset}#{section_id}]"
+    return f"[{index}]"
 
 
 def _build_regenerate_hint(faithfulness_summary: dict) -> str:

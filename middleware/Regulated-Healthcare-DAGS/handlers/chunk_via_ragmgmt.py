@@ -63,8 +63,17 @@ _CHROME_BY_CLASS_RE = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 
+# Heading-preserve pre-pass: convert <h1>..<h6> tags to markdown `# `..`###### `
+# BEFORE the generic tag stripper runs. The chunker (chunking_service.py) reads
+# `## Heading` lines and attaches them as `parent_heading` to subsequent parents,
+# so the regulator-corpus ingest gets section anchors per Excel Task 4.
+_HX_RE = re.compile(
+    r"<h([1-6])\b[^>]*>(.*?)</h\1>",
+    re.DOTALL | re.IGNORECASE,
+)
+
 _BLOCK_RE = re.compile(
-    r"</(p|div|section|article|header|footer|li|h[1-6]|br|tr)\s*>",
+    r"</(p|div|section|article|header|footer|li|br|tr)\s*>",
     re.IGNORECASE,
 )
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -101,10 +110,28 @@ def _strip_chrome(html_str: str) -> str:
     return s
 
 
+def _convert_headings_to_markdown(html_str: str) -> str:
+    """Replace `<h2>Foo</h2>` → `\n\n## Foo\n\n` (and h1..h6 analogously) so
+    the chunker sees markdown heading boundaries. Inner-tag content is
+    preserved as plain text (the generic tag stripper handles any nested
+    inline tags afterward)."""
+    def _sub(match):
+        level = int(match.group(1))
+        inner = match.group(2)
+        # Strip any nested inline tags from the heading text.
+        text = _TAG_RE.sub(" ", inner)
+        text = " ".join(text.split())
+        return f"\n\n{'#' * level} {text}\n\n"
+    return _HX_RE.sub(_sub, html_str)
+
+
 def _html_to_plain_text(html_str: str) -> str:
+    # First convert headings to markdown so they survive the generic tag
+    # stripper as `## Heading` lines. The chunker uses these as section anchors.
+    s = _convert_headings_to_markdown(html_str)
     # Insert a paragraph boundary at the close of common block elements so the
     # parent-splitter sees real paragraph structure after we drop tags.
-    s = _BLOCK_RE.sub("\n\n", html_str)
+    s = _BLOCK_RE.sub("\n\n", s)
     s = _TAG_RE.sub(" ", s)
     s = _html_module.unescape(s)
     lines = [" ".join(line.split()) for line in s.splitlines()]

@@ -185,6 +185,10 @@ def embed_chunked_pages(resolved: dict[str, Any]) -> dict[str, Any]:
                     "child_text": child["text"],
                     "char_offset_in_parent": child["char_offset_in_parent"],
                     "embedding": embedding,
+                    # Section anchors (Excel Task 4 + 11). Both null when
+                    # the source had no markdown headings.
+                    "parent_heading": parent.get("parent_heading"),
+                    "section_id": parent.get("section_id"),
                 }
             )
             page_rows += 1

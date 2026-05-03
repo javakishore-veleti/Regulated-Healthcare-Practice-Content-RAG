@@ -160,6 +160,8 @@ def _hit_to_row(hit: dict, leg: str) -> dict:
         "parent_text": src.get("parent_text") or "",
         "child_text": src.get("child_text") or "",
         "char_offset_in_parent": src.get("char_offset_in_parent") or 0,
+        "parent_heading": src.get("parent_heading"),
+        "section_id": src.get("section_id"),
         "leg_score": float(hit.get("_score") or 0.0),
         "leg": leg,
     }

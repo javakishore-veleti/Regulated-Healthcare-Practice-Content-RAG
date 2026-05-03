@@ -241,6 +241,10 @@ def embed_chunked_pages(resolved: dict[str, Any]) -> dict[str, Any]:
                             child["text"],
                             child["char_offset_in_parent"],
                             _vector_literal(_embed(child["text"])),
+                            # Section anchors (Excel Task 4 + 11). Both NULL when
+                            # the source had no markdown headings.
+                            parent.get("parent_heading"),
+                            parent.get("section_id"),
                         )
                     )
 
@@ -249,7 +253,8 @@ def embed_chunked_pages(resolved: dict[str, Any]) -> dict[str, Any]:
                     """
                     INSERT INTO child_chunk_embeddings (
                         dataset_name, page_index, parent_id, child_id,
-                        parent_text, child_text, char_offset_in_parent, embedding
+                        parent_text, child_text, char_offset_in_parent, embedding,
+                        parent_heading, section_id
                     )
                     VALUES %s
                     ON CONFLICT (dataset_name, page_index, child_id) DO UPDATE SET
@@ -258,11 +263,13 @@ def embed_chunked_pages(resolved: dict[str, Any]) -> dict[str, Any]:
                         child_text            = EXCLUDED.child_text,
                         char_offset_in_parent = EXCLUDED.char_offset_in_parent,
                         embedding             = EXCLUDED.embedding,
+                        parent_heading        = EXCLUDED.parent_heading,
+                        section_id            = EXCLUDED.section_id,
                         ingested_dt           = NOW()
                     """,
                     rows,
                     template=(
-                        "(%s,%s,%s,%s,%s,%s,%s,%s::vector)"
+                        "(%s,%s,%s,%s,%s,%s,%s,%s::vector,%s,%s)"
                     ),
                 )
                 upserted = len(rows)
