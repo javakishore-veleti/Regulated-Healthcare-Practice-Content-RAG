@@ -103,20 +103,47 @@ curl -X POST http://localhost:8002/retrieve \
 
 The response shape is identical to the Postgres backend — `respCtxData.hits` carries the same fields (`dataset_name`, `child_id`, `parent_id`, `child_text`, `rrf_score`, `rerank_score`).
 
-## Ingest path (separate)
+## Ingest path (DAG-side)
 
-This guide covers the QUERY side only. To populate the AOSS index, you need an ingest path that:
+The same `regulated_healthcare_dataset_ingest` DAG that writes to pgvector now also writes to AOSS — selected by `RHC_DAG_VECTOR_STORE`.
 
-1. Pulls raw docs (existing DAG: `regulated_healthcare_dataset_ingest`).
-2. Chunks via `POST /chunk` (existing).
-3. Embeds each child chunk (existing DAG handler: `embed_via_pgvector.py` — needs an OpenSearch sibling).
-4. Bulk-indexes into AOSS with the mapping above.
+```sh
+# In the Airflow worker environment
+RHC_DAG_VECTOR_STORE=aws_opensearch_serverless
+AWS_OPENSEARCH_ENDPOINT=https://abc123.us-east-1.aoss.amazonaws.com
+AWS_OPENSEARCH_INDEX=rhc-child-chunks
+AWS_OPENSEARCH_REGION=us-east-1
 
-A dedicated DAG handler (`embed_via_opensearch.py`) is the natural follow-up. Until it lands, an operator workflow is:
+# Optional: real Bedrock embedder on the corpus side (mirror the QUERY side)
+RHC_DAG_EMBEDDER=aws_bedrock
+BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
+BEDROCK_REGION=us-east-1
+```
 
-- Use the existing `embed_via_pgvector` to write to a local pgvector instance.
-- Run a one-off bulk migration script that reads from pgvector and writes to AOSS.
-- Verify with `aws opensearchserverless` API that the index has the expected document count.
+Required deps in the Airflow worker:
+
+```sh
+pip install opensearch-py boto3
+```
+
+Then trigger an ingest from the admin portal (Initial DataSet → Run ingest) or the API. The orchestrator's `embed_to_vector_store` task now routes to `embed_via_opensearch.py` instead of `embed_via_pgvector.py`. Doc IDs are deterministic (`{dataset_name}::{page_index}::{child_id}`), so re-runs upsert in place.
+
+The handler's manifest summary records the active backend so an operator inspecting `Latest_Ingest/INGEST_MANIFEST.json` sees:
+
+```json
+{
+  "embedding": {
+    "status": "ok",
+    "embedder": "aws_bedrock:amazon.titan-embed-text-v2:0",
+    "embedding_dim": 384,
+    "vector_store": "aws_opensearch_serverless",
+    "index": "rhc-child-chunks",
+    "total_rows_upserted": 1247
+  }
+}
+```
+
+The QUERY side (this guide's main subject) flips with `RAG_RETRIEVAL_BACKEND=aws_opensearch_serverless` on RAGMgmt-Service. Both sides must agree on the index AND the embedder — otherwise queries land in a different vector space than the corpus.
 
 ## Falling back
 

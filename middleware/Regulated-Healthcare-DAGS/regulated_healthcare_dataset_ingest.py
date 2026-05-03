@@ -47,7 +47,16 @@ if _DAGS_DIR not in sys.path:
 DAG_ID = "regulated_healthcare_dataset_ingest"
 TASK_FETCH = "fetch_for_dataset_type"
 TASK_CHUNK_VIA_RAGMGMT = "chunk_via_ragmgmt"
-TASK_EMBED_VIA_PGVECTOR = "embed_via_pgvector"
+TASK_EMBED_TO_VECTOR_STORE = "embed_to_vector_store"
+
+# RHC_DAG_VECTOR_STORE selects the corpus index target. Mirrors the QUERY-side
+# RAG_RETRIEVAL_BACKEND in RAGMgmt-Service so the corpus and queries land in
+# the SAME store. Default `pgvector` keeps local-dev unchanged.
+_VECTOR_STORE_BACKEND = (os.environ.get("RHC_DAG_VECTOR_STORE") or "pgvector").lower()
+_EMBED_HANDLER_FILE = {
+    "pgvector": "embed_via_pgvector.py",
+    "aws_opensearch_serverless": "embed_via_opensearch.py",
+}.get(_VECTOR_STORE_BACKEND, "embed_via_pgvector.py")
 
 # Per Project A's `1_Project_A_Healthcare_Content` worksheet: five datasets, each
 # with its own fetcher module. Add entries here to extend.
@@ -155,18 +164,20 @@ def regulated_healthcare_dataset_ingest():
         module = _load_handler_module("chunk_via_ragmgmt.py")
         return module.chunk_fetched_pages(resolved)
 
-    @task(task_id=TASK_EMBED_VIA_PGVECTOR)
-    def embed_via_pgvector(resolved: dict, chunk_result: dict) -> dict:
+    @task(task_id=TASK_EMBED_TO_VECTOR_STORE)
+    def embed_to_vector_store(resolved: dict, chunk_result: dict) -> dict:
         # Modular per CLAUDE.md: embedding is its own task downstream of chunking.
-        # Reads chunked/*.json, embeds children with the stub embedder, upserts to
-        # pgvector. Gracefully no-ops when RHC_VECTORS_DB_DSN is unset.
-        module = _load_handler_module("embed_via_pgvector.py")
+        # Dispatches on RHC_DAG_VECTOR_STORE: `pgvector` (default) writes to the
+        # rag_vectors Postgres + pgvector instance; `aws_opensearch_serverless`
+        # writes to AOSS via opensearch-py. Both handlers share the embedder
+        # backend dispatch (RHC_DAG_EMBEDDER ∈ {stub, aws_bedrock}).
+        module = _load_handler_module(_EMBED_HANDLER_FILE)
         return module.embed_chunked_pages(resolved)
 
     resolved = resolve_destination()
     fetch_result = fetch_for_dataset_type(resolved)
     chunk_result = chunk_via_ragmgmt(resolved, fetch_result)
-    embed_via_pgvector(resolved, chunk_result)
+    embed_to_vector_store(resolved, chunk_result)
 
 
 def _write_stub_manifest(resolved: dict) -> dict:
